@@ -1700,7 +1700,12 @@ enhanceSelects();
 /* ---------- streaming ---------- */
 let RACE_STOP = false;          /* set by the STOP button; checked at every race phase */
 const ACTIVE_STREAMS = [];      /* abort closures for in-flight streams (STOP invokes them) */
-function stream(backend, prompt, n, L) {
+function stream(backend, prompt, n, L, live) {
+  /* live: paint each token into the lane as it arrives (feedToken), instead of only
+     recording for a later synchronized replay. Used for solo runs — with one engine
+     there is nothing to synchronize, so making the user wait through a silent
+     "computing…" phase and then watch a replay was pure theater. The recording is
+     still kept: the banner's tok/s comes from the server-stamped offsets either way. */
   return new Promise(resolve => {
     /* settle exactly once + deregister, whether we finish, fail, or get STOPPED */
     let settled = false;
@@ -1775,8 +1780,9 @@ function stream(backend, prompt, n, L) {
       }
       const now = performance.now();
       if (recFirstT === null) { recFirstT = now; recFirstS = (d.t != null ? d.t : null);
-        finishLoad(); L.el.state.textContent = ' — computing…'; }
+        finishLoad(); L.el.state.textContent = live ? ' — in flight… · LIVE' : ' — computing…'; }
       recLastT = now;
+      if (live) feedToken(L, d.tok, n > 0 ? n : 600);
       /* Offsets come from the SERVER's clock when it sends one. Recording client arrival time
          instead makes the replay reproduce SSE and scheduler jitter rather than the engine's
          cadence -- it compressed the replay ratio, i.e. the transport was being timed,
@@ -2670,9 +2676,44 @@ $('go').onclick = async () => {
   const heavyRival = (rival === 'vllm' || rival === 'trtllm');
   let usR, themR;
   if (noRival) {
+    /* LIVE SOLO. One engine means nothing to synchronize, so the record-then-replay
+       machinery is pure waiting here: countdown, then stream tokens into the lane the
+       moment the engine produces them. The banner's tok/s still comes from the
+       server-stamped recording, same as every other run. */
     LT.el.state.textContent = ' — no rival installed';
-    usR = await stream(usBackend, prompt, ntok, LU);
-    themR = null;                 /* the !themOK path below renders the honest solo run */
+    RUNCLOCK.phase('countdown'); await countdown();
+    RUNCLOCK.start(); RUNCLOCK.phase('racing');
+    if (RACE_STOP) { FUEL.endLive(); return; }
+    resetReplay(LU);
+    usR = await stream(usBackend, prompt, ntok, LU, true);
+    SND.flightOff(); FUEL.endLive();
+    if (RACE_STOP) return;
+    if (!(usR && usR.rec && usR.rec.length)) {
+      LU.el.state.textContent = ' — no output';
+      $('go').disabled = false; return;
+    }
+    LU.rttft = usR.ttft;
+    O.usF.set(usR.ttft != null ? String(Math.round(usR.ttft)) : '—');
+    LU.el.state.textContent = ' — ✓ complete · ran live';
+    {
+      const last = usR.rec[usR.rec.length-1].off;
+      const tps = usR.rec.length > 1 ? (usR.rec.length-1)/(last/1000) : 0;
+      soloBanner(tps, '');
+      medal('m-proof', !!(usR.stats && usR.stats.receipt));
+    }
+    /* .text + .buf, never .buf alone -- see the note on the two-lane site above. */
+    lastRun = { backend: usBackend, prompt, ntok, text: LU.text + LU.buf };
+    if (usR.stats && usR.stats.receipt) {
+      try {
+        const r = await (await fetch('/receipt')).json();
+        $('rcpt-hash').textContent = r.clean
+          ? 'no NVIDIA math or inference library mapped — only ' + (r.driver||[]).join(', ')
+          : 'unexpected: ' + (r.math_or_inference_libraries||[]).join(', ');
+        $('rcpt-n').textContent = (r.driver||[]).length;
+        $('us-receipt').classList.add('show');
+      } catch(e){}
+    }
+    $('go').disabled = false; return;
   } else if (heavyRival) {
     LT.el.state.textContent = ' — waiting: HIVE runs first (8 GB — one model at a time)';
     // clear any stale load bar from a prior race so the WAITING state is unambiguous
