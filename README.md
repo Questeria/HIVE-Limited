@@ -33,7 +33,9 @@ irm https://raw.githubusercontent.com/Questeria/HIVE-Limited/main/install.ps1 | 
 
 Either one checks your machine, fetches the code and a model, and starts the server. If
 anything is missing it says exactly what to type. Safe to re-run — finished steps are
-skipped, and an interrupted download resumes.
+skipped, and an interrupted download resumes. **Already installed? The same line
+updates it in place** (it stops a running engine first; your downloaded models are
+never touched).
 
 Then open **http://localhost:8080**.
 

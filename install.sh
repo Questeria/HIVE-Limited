@@ -150,15 +150,24 @@ if [ -n "${AVAIL_GB:-}" ] && [ "$AVAIL_GB" -lt 8 ] 2>/dev/null; then
 fi
 ok "${AVAIL_GB:-enough} GB free"
 
-# ---- 5. get the software ----------------------------------------------------
-step "Downloading HIVE Limited"
-
+# ---- 5. get the software (fresh install OR in-place update) ------------------
 if [ -f "$INSTALL_DIR/serve.py" ]; then
-  ok "Already downloaded — using $INSTALL_DIR"
+  step "Updating HIVE Limited"
+  # A running engine keeps old code loaded; stop it so the update takes effect.
+  # ([s]erve.py: the bracket keeps this pkill from ever matching itself.)
+  if pkill -f "[s]erve\.py" 2>/dev/null; then
+    info "Stopped the running engine — start.sh starts the updated one."
+    sleep 1
+  fi
+  FRESH=0
 else
-  mkdir -p "$INSTALL_DIR" || die "Could not create $INSTALL_DIR" \
-    "Check you have permission to write to your home folder."
-  TARBALL="https://codeload.github.com/$REPO/tar.gz/refs/heads/$BRANCH"
+  step "Downloading HIVE Limited"
+  FRESH=1
+fi
+
+mkdir -p "$INSTALL_DIR" || die "Could not create $INSTALL_DIR" \
+  "Check you have permission to write to your home folder."
+TARBALL="https://codeload.github.com/$REPO/tar.gz/refs/heads/$BRANCH"
   # Download to a file FIRST, then unpack. Piping curl straight into tar spills three
   # separate tool errors ("curl: (22)", "gzip: stdin: unexpected end of file", "tar: Child
   # returned status 1") above whatever friendly message follows, and that noise is exactly
@@ -209,9 +218,9 @@ else
       "" \
       "Run this installer again — it will download a fresh copy."
   fi
-  rm -f "$ARCHIVE"
-  ok "Downloaded to $INSTALL_DIR"
-fi
+rm -f "$ARCHIVE"
+if [ "$FRESH" = 1 ]; then ok "Downloaded to $INSTALL_DIR"
+else ok "Updated $INSTALL_DIR to the latest build (models untouched)"; fi
 chmod +x "$INSTALL_DIR"/*.sh "$INSTALL_DIR"/setup/*.sh 2>/dev/null
 
 # ---- 6. the model -----------------------------------------------------------

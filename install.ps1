@@ -128,41 +128,50 @@ try {
   Ok "$freeGB GB free"
 } catch { Warn "Could not check free space -- carrying on" }
 
-# ---- 4. get the software ----------------------------------------------------
-Step "Downloading HIVE Limited"
+# ---- 4. get the software (fresh install OR in-place update) ------------------
+$fresh = -not (Test-Path (Join-Path $InstallDir "serve.py"))
+Step $(if ($fresh) { "Downloading HIVE Limited" } else { "Updating HIVE Limited" })
 
-if (Test-Path (Join-Path $InstallDir "serve.py")) {
-  Ok "Already downloaded -- using $InstallDir"
-} else {
-  New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
-  $zipUrl = "https://codeload.github.com/$Repo/zip/refs/heads/$Branch"
-  $zip = Join-Path $env:TEMP "hive-limited.zip"
-  try {
-    Invoke-WebRequest -Uri $zipUrl -OutFile $zip -UseBasicParsing
-  } catch {
-    $code = try { [int]$_.Exception.Response.StatusCode } catch { 0 }
-    if ($code -eq 404) {
-      Die "Could not find the download." @(
-        "The server replied 'not found' for:  $Repo (branch $Branch)",
-        "",
-        "This usually means the project is not published yet, or the link you",
-        "were given is out of date.",
-        "Please check for an updated link, or email  ajdemarco10@gmail.com")
-    }
-    Die "Could not reach the internet." @(
-      "The download could not connect.",
-      "- Check you are online.",
-      "- If you are on a work or school network, it may be blocking GitHub.",
-      "Then run this installer again.")
-  }
-  $tmp = Join-Path $env:TEMP ("hive-limited-unpack-" + [IO.Path]::GetRandomFileName())
-  Expand-Archive -Path $zip -DestinationPath $tmp -Force
-  $inner = Get-ChildItem $tmp -Directory | Select-Object -First 1
-  Get-ChildItem $inner.FullName -Force | Move-Item -Destination $InstallDir -Force
-  Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
-  Remove-Item $zip -Force -ErrorAction SilentlyContinue
-  Ok "Downloaded to $InstallDir"
+# A running engine holds its folder open and makes any file refresh fail with
+# "being used by another process" -- so stop it first, and say so.
+$running = Get-CimInstance Win32_Process -Filter "CommandLine LIKE '%serve.py%'" -ErrorAction SilentlyContinue
+if ($running) {
+  Info "Stopping the running HIVE Limited engine so files can be updated..."
+  $running | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+  Start-Sleep -Seconds 1
+  Ok "Engine stopped -- start.bat starts the updated one when we are done"
 }
+
+New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
+$zipUrl = "https://codeload.github.com/$Repo/zip/refs/heads/$Branch"
+$zip = Join-Path $env:TEMP "hive-limited.zip"
+try {
+  Invoke-WebRequest -Uri $zipUrl -OutFile $zip -UseBasicParsing
+} catch {
+  $code = try { [int]$_.Exception.Response.StatusCode } catch { 0 }
+  if ($code -eq 404) {
+    Die "Could not find the download." @(
+      "The server replied 'not found' for:  $Repo (branch $Branch)",
+      "",
+      "This usually means the project is not published yet, or the link you",
+      "were given is out of date.",
+      "Please check for an updated link, or email  ajdemarco10@gmail.com")
+  }
+  Die "Could not reach the internet." @(
+    "The download could not connect.",
+    "- Check you are online.",
+    "- If you are on a work or school network, it may be blocking GitHub.",
+    "Then run this installer again.")
+}
+$tmp = Join-Path $env:TEMP ("hive-limited-unpack-" + [IO.Path]::GetRandomFileName())
+Expand-Archive -Path $zip -DestinationPath $tmp -Force
+$inner = Get-ChildItem $tmp -Directory | Select-Object -First 1
+# Copy-Item merges into existing folders; Move-Item cannot. Models and your own
+# files are untouched -- they live outside this folder.
+Copy-Item -Path (Join-Path $inner.FullName "*") -Destination $InstallDir -Recurse -Force
+Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item $zip -Force -ErrorAction SilentlyContinue
+Ok $(if ($fresh) { "Downloaded to $InstallDir" } else { "Updated $InstallDir to the latest build" })
 
 # ---- 5. the model -----------------------------------------------------------
 Step "Downloading the AI model (about 4 GB -- this is the slow part)"
