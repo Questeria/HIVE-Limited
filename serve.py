@@ -257,6 +257,49 @@ def mapped_libraries() -> dict:
     interesting = ("cublas", "cudnn", "cufft", "cusparse", "cusolver", "nvrtc",
                    "tensorrt", "nvinfer", "cudart", "torch", "nccl")
     found, driver = [], []
+    if os.name == "nt":
+        # Native Windows: enumerate this process's loaded modules through psapi —
+        # the same check /proc/self/maps gives on Linux. Before this branch existed
+        # the panel showed "available: false" fields as a broken-looking receipt.
+        import ctypes
+        from ctypes import wintypes
+        psapi = ctypes.windll.psapi
+        k32 = ctypes.windll.kernel32
+        # Explicit prototypes matter: without them ctypes marshals the -1 pseudo-handle
+        # through a 32-bit int and the call fails with INVALID_HANDLE on 64-bit Python.
+        k32.GetCurrentProcess.restype = wintypes.HANDLE
+        psapi.EnumProcessModulesEx.argtypes = [
+            wintypes.HANDLE, ctypes.POINTER(wintypes.HMODULE),
+            wintypes.DWORD, ctypes.POINTER(wintypes.DWORD), wintypes.DWORD]
+        psapi.GetModuleFileNameExW.argtypes = [
+            wintypes.HANDLE, wintypes.HMODULE, ctypes.c_wchar_p, wintypes.DWORD]
+        handle = k32.GetCurrentProcess()
+        arr = (wintypes.HMODULE * 2048)()
+        needed = wintypes.DWORD()
+        if not psapi.EnumProcessModulesEx(handle, arr, ctypes.sizeof(arr),
+                                          ctypes.byref(needed), 0x03):
+            return {"available": False, "note": "could not enumerate loaded modules"}
+        count = min(needed.value // ctypes.sizeof(wintypes.HMODULE), 2048)
+        buf = ctypes.create_unicode_buffer(1024)
+        for i in range(count):
+            if not psapi.GetModuleFileNameExW(handle, arr[i], buf, 1024):
+                continue
+            base = os.path.basename(buf.value)
+            low = base.lower()
+            if any(tag in low for tag in interesting):
+                if base not in found:
+                    found.append(base)
+            elif low.startswith("nvcuda") and base not in driver:
+                driver.append(base)
+        return {
+            "available": True,
+            "driver": driver,
+            "math_or_inference_libraries": found,
+            "clean": len(found) == 0,
+            "note": ("no NVIDIA math or inference library is mapped — only the driver"
+                     if not found else
+                     "unexpected libraries are mapped; this build should not need them"),
+        }
     try:
         with open("/proc/self/maps", "r") as fh:
             for line in fh:
@@ -744,18 +787,21 @@ class Handler(BaseHTTPRequestHandler):
     # ---- the race ----------------------------------------------------------
 
     def _run(self, params):
-        backend = (params.get("backend") or ["ours"])[0]
+        # NO default backend. parse_qs drops blank values, so a fresh install whose
+        # rival dropdown holds only "no rival engines installed yet" (value "") used to
+        # fall through a `or ["ours"]` default here — the "rival" lane silently re-ran
+        # our own engine and the banner declared a fake rival victory. An engine race
+        # that isn't explicit does not run.
+        backend = (params.get("backend") or [""])[0]
         prompt = (params.get("prompt") or [""])[0]
         raw_n = (params.get("ntok") or params.get("max_new") or ["100"])[0]
         try:
             ntok = int(raw_n)
         except ValueError:
             ntok = 100
-        # -1 means "run to EOS". The engine still needs a hard ceiling or a model that
-        # never emits EOS would run until the context cap throws.
+        # -1 means "run to EOS". The real ceiling is applied per lane below: our engine
+        # gets the model's remaining context, a rival gets its own launch window.
         unlimited = ntok < 0
-        if unlimited:
-            ntok = 512
 
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
@@ -769,10 +815,13 @@ class Handler(BaseHTTPRequestHandler):
 
         STOP.clear()
         try:
-            if backend == "ours":
-                self._run_ours(prompt, ntok, emit)
+            if not backend:
+                emit({"error": "no engine selected for this lane — the dropdown has no "
+                               "installed rival yet. ADD AN ENGINE installs or connects one."})
+            elif backend == "ours":
+                self._run_ours(prompt, ntok, emit, unlimited)
             else:
-                self._run_rival(backend, prompt, ntok, emit)
+                self._run_rival(backend, prompt, ntok, emit, unlimited)
         except ConnectionError:
             pass
         except Exception as exc:
@@ -781,12 +830,20 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 pass
 
-    def _run_ours(self, prompt, ntok, emit):
+    def _run_ours(self, prompt, ntok, emit, unlimited=False):
         if ENGINE is None:
             return emit({"error": "engine not loaded"})
         import tokenizer_min
         tok = tokenizer_min.get()
-        ids = tok.encode(prompt)
+        # The model's own chat template (non-thinking form). Raw encoding fed an
+        # instruct model bare text, and greedy decoding of that produced degenerate
+        # loops — "10000 words. 1. 10000 words. 2. ..." on the first real install.
+        # bench/verify keep raw encoding: their golden outputs are pinned to it.
+        ids = tok.prompt_ids(prompt)
+        if unlimited:
+            # "Unlimited" = to EOS or the model's real context edge — it used to be a
+            # silent 512 cap, which is neither.
+            ntok = max(1, ENGINE.cfg.max_context - len(ids) - 4)
         with ENGINE_LOCK:
             ENGINE.bind_thread()               # CUDA contexts are per-thread
             n, ttft_ms, prefill_ms = 0, None, None
@@ -808,13 +865,19 @@ class Handler(BaseHTTPRequestHandler):
                 "receipt": True,
             }})
 
-    def _run_rival(self, key, prompt, ntok, emit):
+    def _run_rival(self, key, prompt, ntok, emit, unlimited=False):
         rv = rivals.get(key)
         if rv is None:
             return emit({"error": f"unknown backend {key!r}"})
         ok, why = rv.available()
         if not ok:
             return emit({"error": why})
+        # The SAME templated string our lane encodes — one definition in the tokenizer
+        # module — so both engines answer word-for-word identical input.
+        import qwen3_tokenizer
+        prompt = qwen3_tokenizer.chat_wrap(prompt)
+        if unlimited:
+            ntok = 3584                        # inside the rival's 4096-token launch window
         model_id = os.path.basename(str(MODEL_DIR or "model"))
         with ENGINE_LOCK:                      # never two heavy engines at once
             n, t_first = 0, None

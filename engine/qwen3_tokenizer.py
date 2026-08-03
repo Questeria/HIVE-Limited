@@ -26,6 +26,12 @@ _SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 _CHAT_PREFIX = "<|im_start|>user\n"
 _CHAT_MIDDLE = "<|im_end|>\n<|im_start|>assistant\n"
 _NO_THINK = "<think>\n\n</think>\n\n"
+
+
+def chat_wrap(prompt: str) -> str:
+    """The exact string prompt_ids() encodes — public so the arena can hand the SAME
+    templated input to a rival's raw-completion endpoint. One definition, two lanes."""
+    return _CHAT_PREFIX + prompt + _CHAT_MIDDLE + _NO_THINK
 _REQUIRED_TEMPLATE_FRAGMENTS = (
     "'<|im_start|>' + message.role + '\\n' + content + '<|im_end|>' + '\\n'",
     "'<|im_start|>assistant\\n'",
@@ -346,7 +352,7 @@ class Qwen3NativeTokenizer:
     def prompt_ids(self, prompt: str) -> list[int]:
         if not isinstance(prompt, str):
             raise TypeError("prompt must be a string")
-        return self.encode(_CHAT_PREFIX + prompt + _CHAT_MIDDLE + _NO_THINK)
+        return self.encode(chat_wrap(prompt))
 
     def decode(self, token_ids: Sequence[int], *, skip_special_tokens: bool = True) -> str:
         encoded = bytearray()

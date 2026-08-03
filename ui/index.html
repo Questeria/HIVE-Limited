@@ -1876,7 +1876,9 @@ function soloBanner(tps, rivalName) {
     <div class="bnHead">HIVE Limited &mdash; ${tps.toFixed(1)} tok/s</div>
     <div class="bnNums"><span class="bnSide us"><b>${tps.toFixed(1)}</b><i>HIVE Limited tok/s</i></span></div>
     <div class="bnSub">solo run &mdash; measured on your machine, one run, not a benchmark</div>
-    <div class="bnNote">No rival answered, so there is nothing to compare against and no winner is claimed. ${rivalName} is not installed or not serving &mdash; the lane above says how to fix that. See <b>docs/ENGINES.md</b> to install one, or to point the arena at an engine you already run.</div>`;
+    <div class="bnNote">${rivalName
+      ? `No rival answered, so there is nothing to compare against and no winner is claimed. ${rivalName} is not installed or not serving &mdash; the lane above says how to fix that. See <b>docs/ENGINES.md</b> to install one, or to point the arena at an engine you already run.`
+      : `No rival engine is installed yet, so this was a solo run and no winner is claimed. The <b>ADD AN ENGINE</b> button installs llama.cpp or vLLM, or connects any engine you already serve &mdash; then the race is real.`}</div>`;
   void b.offsetWidth;
   b.classList.add('show');
 }
@@ -2063,6 +2065,12 @@ const FUEL = (() => {
       t.tanksEl.classList.remove('bump'); void t.tanksEl.offsetWidth; t.tanksEl.classList.add('bump'); }
   }
   function verdictIdle() {
+    const sel = $('rival');
+    if (!sel || !RIVALS[sel.value]) {
+      /* No rival installed: describe only our own measured tank. */
+      vEl.innerHTML = `▸ one tankful — HIVE Limited emits <b>${H.cap}</b> tokens, measured from its own weights. Add a rival engine to compare tanks.`;
+      return;
+    }
     const rv = RIVALS[rivalKey], bits = rv.sub.split(' · ')[0];
     vEl.innerHTML = `▸ one tankful — HIVE Limited emits <b>${H.cap}</b> tokens (measured from its own weights), ${rv.name} about <b>${R.cap}</b> (${bits}, estimated from the published format)`;
   }
@@ -2083,12 +2091,20 @@ const FUEL = (() => {
     for (const t of tanks) { full(t); t.ctr.textContent = t.cap; t.sub.textContent = 'tokens per tank'; resetStat(t); }
     verdictIdle(); badge('READY', false); bubbles(false);
   }
+  let solo = false;               /* a run with no rival: never invent the missing lane */
   function startLive(rival) {
-    setRival(rival); mode = 'live';
+    solo = !rival;
+    setRival(rival || 'llamacpp'); mode = 'live';
     const lbl = 'tokens · LIVE';
     for (const t of tanks) { full(t); t.ctr.textContent = '0'; t.sub.textContent = lbl;
       resetStat(t); }
-    vEl.innerHTML = '▸ live: both engines say the SAME words — watch how many tankfuls each has to burn to get there';
+    if (solo) {
+      $('rvname').textContent = 'no rival';
+      R.ctr.textContent = '—'; R.sub.textContent = '—';
+      vEl.innerHTML = '▸ live: solo run — fuel burn is measured from the weights this engine loaded. Add a rival to compare tanks.';
+    } else {
+      vEl.innerHTML = '▸ live: both engines say the SAME words — watch how many tankfuls each has to burn to get there';
+    }
     badge('● LIVE', true); bubbles(true);
   }
   function syncLive() {                                /* event-driven, per streamed token */
@@ -2100,7 +2116,11 @@ const FUEL = (() => {
     if (mode !== 'live') return;
     mode = 'done';                                     /* freeze the result, static */
     const N = LU.words || 0, rv = RIVALS[rivalKey], bits = rv.sub.split(' · ')[0];
-    if (N > 0) {
+    if (N > 0 && (solo || !(LT.n > 0))) {
+      /* Solo: state only what was measured. A rival that never ran gets no estimate. */
+      const hiveGB = Math.round(N * HRATE);
+      vEl.innerHTML = `▸ to write <b>${N} words</b>, HIVE read <b>${hiveGB} GB</b> from memory — measured from the weights it loaded. Add a rival engine to compare.`;
+    } else if (N > 0) {
       const hiveGB = Math.round(N * HRATE), rivalGB = Math.round(N * rv.rate);
       /* Say what was measured, in the unit it was measured in. "Tanks" is the visual; gigabytes
          read from memory is the actual quantity, and it is the reason the speed difference
@@ -2620,18 +2640,27 @@ $('go').onclick = async () => {
   try {
   await SND.warm();                 /* prime audio so the 3 · 2 · 1 beeps all play */
   const prompt = $('prompt').value, rival = $('rival').value;
-  $('them-name').textContent = rival.toUpperCase();
+  /* A fresh install has no rival: the dropdown's only real option is the empty
+     "no rival engines installed yet" placeholder (or the add-an-engine action).
+     That is a SOLO run, declared as one — it must never fall through to racing
+     anything silently. (It once did: the empty backend defaulted server-side to
+     our own engine, and the page declared "RIVAL WINS" over a lane that was us.) */
+  const noRival = !rival || rival === '__add__';
+  $('them-name').textContent = noRival ? 'NO RIVAL' : rival.toUpperCase();
   $('them-who').textContent = ($('them-name').textContent) + ' · LC-39B';
-  $('them-model').textContent = RIVAL_MODEL[rival] || '';
+  $('them-model').textContent = noRival
+    ? 'no rival engine installed — ADD AN ENGINE installs or connects one'
+    : (RIVAL_MODEL[rival] || '');
   $('us-model').textContent = OUR_MODEL['live'];
   resetLane(LU); resetLane(LT);
   O.usT.set('0'); O.themT.set('0'); O.usF.set('—'); O.themF.set('—'); O.usN.set('0'); O.themN.set('0');
   $('us-receipt').classList.remove('show'); $('banner').classList.remove('show');
   document.querySelectorAll('.medal').forEach(m => m.classList.remove('show','lost'));
-  FUEL.startLive(rival);
+  FUEL.startLive(noRival ? null : rival);
   /* PHASE 1 — COMPUTE: run both models to completion. Rockets stay on the pad; loading bars fill.
-     'don't launch until both models are fully loaded' -> we wait for BOTH to finish computing. */
-  LU.el.state.textContent = ' — loading model…';
+     'don't launch until both models are fully loaded' -> we wait for BOTH to finish computing.
+     Our lane says "starting", not "loading" — the engine is resident in the server from boot. */
+  LU.el.state.textContent = ' — starting…';
   const usBackend = 'ours';
   /* PHASE 1 is RECORD-ONLY (PHASE 2 replays both synced), so the compute order is invisible to
      the race. On the 8 GB card two heavyweight engines CANNOT co-reside, so for a heavy rival we
@@ -2640,7 +2669,11 @@ $('go').onclick = async () => {
      Promise.all) made the rival OOM at ~97% mid-load. llama.cpp is light → still parallel. */
   const heavyRival = (rival === 'vllm' || rival === 'trtllm');
   let usR, themR;
-  if (heavyRival) {
+  if (noRival) {
+    LT.el.state.textContent = ' — no rival installed';
+    usR = await stream(usBackend, prompt, ntok, LU);
+    themR = null;                 /* the !themOK path below renders the honest solo run */
+  } else if (heavyRival) {
     LT.el.state.textContent = ' — waiting: HIVE runs first (8 GB — one model at a time)';
     // clear any stale load bar from a prior race so the WAITING state is unambiguous
     // (a leftover "✓ loaded" on the rival lane is exactly what looks like "both are up")
@@ -2680,7 +2713,7 @@ $('go').onclick = async () => {
     if (!RACE_STOP) {
       const last = usR.rec[usR.rec.length-1].off;
       const tps = usR.rec.length > 1 ? (usR.rec.length-1)/(last/1000) : 0;
-      soloBanner(tps, RIVAL_NAME[rival] || 'the rival');
+      soloBanner(tps, noRival ? '' : (RIVAL_NAME[rival] || 'the rival'));
       medal('m-proof', !!(usR.stats && usR.stats.receipt));
     }
     /* .text + .buf, never .buf alone -- see the note on the two-lane site above. */

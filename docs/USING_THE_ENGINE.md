@@ -53,6 +53,9 @@ time. If you call it from a thread other than the one that built it, call
 
 - `stream()` synchronizes per token so its timestamps are real; that costs a little
   throughput. The number to quote is `bench.sh`, which measures the batch path.
-- Prompts are encoded raw — no chat template — so instruct-style models will behave like
-  completion models. That is the demo's behavior too, and it is the honest default for
-  an engine this small: a template is a prompt-engineering choice, not an engine feature.
+- `tok.encode(text)` is raw — no chat template — so instruct models treat it as a
+  completion and tend to ramble. For a question-and-answer shape, encode with
+  `tok.prompt_ids(text)` instead: it wraps the text in the model's own chat template
+  (non-thinking form) and the model then answers and stops at EOS on its own. The
+  arena uses `prompt_ids`; `bench.sh`/`verify.sh` stay raw because their pinned
+  reference outputs were certified against raw encoding.

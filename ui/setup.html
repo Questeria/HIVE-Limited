@@ -243,102 +243,12 @@
 <div class="wrap">
   <a class="back" href="/">← back to the arena</a>
 
-  <h1 class="rise">Get started</h1>
+  <h1 class="rise">Add engines &amp; models</h1>
   <p class="lede rise" style="animation-delay:.06s">
-    Three steps. About 10 minutes, and most of that is just downloading.
-    No coding, no GitHub account.
+    You are already running HIVE Limited — this page is served by it. Here you can
+    install a rival engine to race against, and download or switch AI models.
+    Everything runs on your machine.
   </p>
-
-  <div class="needs rise" style="animation-delay:.12s">
-    <div class="need"><span class="ic">🎮</span><div>
-      <b>A NVIDIA graphics card</b><span>The kind used for gaming</span></div></div>
-    <div class="need"><span class="ic">💻</span><div>
-      <b>Windows or Linux</b><span>No Mac — they have no NVIDIA card</span></div></div>
-    <div class="need"><span class="ic">💾</span><div>
-      <b>8 GB free space</b><span>The AI model is about 4 GB</span></div></div>
-  </div>
-
-  <div class="steps">
-
-    <!-- STEP 1 -->
-    <div class="step rise" style="animation-delay:.2s">
-      <div class="num">1</div>
-      <h2>Open a terminal</h2>
-      <p class="sub">A window where you type commands. Looks scarier than it is.</p>
-
-      <div class="tabs" role="tablist">
-        <button class="tab on" data-pane="win">Windows</button>
-        <button class="tab" data-pane="lin">Linux</button>
-      </div>
-
-      <div class="pane on" id="win">
-        <ol class="mini">
-          <li>Press <span class="icode">Start</span>, type <b>PowerShell</b>, right-click it,
-              choose <b>Run as administrator</b></li>
-          <li>Type <span class="icode">wsl --install</span> and press Enter</li>
-          <li><b>Restart your computer</b> when it asks</li>
-          <li>Press <span class="icode">Start</span>, type <b>Ubuntu</b>, open it</li>
-          <li>Make up a username and password.
-              <span style="color:var(--dim)">The password stays invisible as you type — that is normal.</span></li>
-        </ol>
-        <p class="hint">That Ubuntu window is your terminal. One-time setup — you will not do this again.</p>
-      </div>
-
-      <div class="pane" id="lin">
-        <p style="margin:0">Press <span class="icode">Ctrl</span> +
-           <span class="icode">Alt</span> + <span class="icode">T</span>.</p>
-        <p class="hint">That's the whole step.</p>
-      </div>
-    </div>
-
-    <!-- STEP 2 -->
-    <div class="step rise" style="animation-delay:.28s">
-      <div class="num">2</div>
-      <h2>Paste one line</h2>
-      <p class="sub">This does everything else for you.</p>
-
-      <div class="term">
-        <div class="termbar">
-          <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
-          <span class="termttl">your terminal</span>
-        </div>
-        <div class="termbody"><span class="prompt">$ </span><span id="typed"></span><span class="caret"></span></div>
-      </div>
-
-      <button class="copy" id="copyBtn"><span id="copyIco">⧉</span><span id="copyTxt">Copy this line</span></button>
-      <p class="hint">
-        <b>Ctrl+V often does nothing in a terminal.</b> Use <b>right-click</b>, or
-        <span class="icode">Ctrl</span>+<span class="icode">Shift</span>+<span class="icode">V</span>.
-      </p>
-      <p class="hint">
-        Then press Enter and leave it running. It tells you what it is doing, and if anything is
-        missing it says exactly what to type.
-      </p>
-    </div>
-
-    <!-- STEP 3 -->
-    <div class="step rise" style="animation-delay:.36s">
-      <div class="num">3</div>
-      <h2>Open your browser</h2>
-      <p class="sub">When it says it's ready, go to this address.</p>
-
-      <div class="brow">
-        <div class="browbar">
-          <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
-          <span class="url">http://<b>localhost:8080</b></span>
-        </div>
-        <div class="browbody">
-          <span class="rocket">🚀</span>
-          <p>Type a question, press <b>LAUNCH</b>, watch it answer.</p>
-        </div>
-      </div>
-      <p class="hint">
-        Another day? Start it again with
-        <span class="icode">~/hive-limited/start.sh</span>
-      </p>
-    </div>
-
-  </div>
 
   <!-- THE TWO PIECES -->
   <div class="opt rise" style="animation-delay:.42s">
@@ -499,6 +409,21 @@
     </details>
   </div>
 
+  <!-- ANOTHER MACHINE -->
+  <div class="opt rise" style="animation-delay:.48s">
+    <h2>💻 Put HIVE Limited on another machine</h2>
+    <p class="sub">
+      This copy is already installed and running. To set it up somewhere else — or point a
+      friend at it — everything is one pasted line. The full walkthrough, requirements
+      included, lives at
+      <a href="https://299bytes.com/hive/" target="_blank" rel="noopener">299bytes.com/hive</a>.
+    </p>
+    <p class="tiny" style="margin:10px 0 4px">Linux, or Windows via WSL:</p>
+    <button class="copy" data-copy="curl -fsSL https://raw.githubusercontent.com/Questeria/HIVE-Limited/main/install.sh | bash"><span>⧉</span><span>Copy the Linux / WSL line</span></button>
+    <p class="tiny" style="margin:14px 0 4px">Native Windows (PowerShell, no WSL needed):</p>
+    <button class="copy" data-copy="irm https://raw.githubusercontent.com/Questeria/HIVE-Limited/main/install.ps1 | iex"><span>⧉</span><span>Copy the Windows line</span></button>
+  </div>
+
   <!-- TROUBLE -->
   <div class="rise" style="animation-delay:.5s">
     <h2 style="font-family:var(--disp);font-size:20px;margin:40px 0 4px">Something went wrong?</h2>
@@ -507,7 +432,7 @@
     </p>
 
     <details><summary>“curl: command not found”</summary>
-      <div class="dbody"><p>Install it, then paste the line from Step 2 again:</p>
+      <div class="dbody"><p>Install it, then paste the installer line again:</p>
       <p><code>sudo apt update &amp;&amp; sudo apt install -y curl</code></p></div></details>
 
     <details><summary>“No NVIDIA graphics driver found”</summary>
@@ -556,45 +481,6 @@
   el.style.boxShadow = sh.join(',');
 })();
 
-const INSTALL = 'curl -fsSL https://raw.githubusercontent.com/Questeria/HIVE-Limited/main/install.sh | bash';
-
-/* Type the command out rather than printing it: a beginner is about to paste a long line of
-   symbols into a black window, and watching it appear makes it read as something ordinary
-   rather than something to be afraid of. Respect prefers-reduced-motion. */
-(function type() {
-  const el = document.getElementById('typed');
-  if (!el) return;
-  let done = false;
-  const finish = () => { done = true; el.textContent = INSTALL; };
-
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { finish(); return; }
-
-  /* Three ways this ends, because a half-typed command looks broken and this is the one
-     line the whole page exists to deliver:
-       - it finishes typing (the normal case, ~2 s)
-       - the tab is hidden: browsers clamp setTimeout to ~1 s in the background, so an
-         animation left running there would still be crawling on return
-       - a 5 s deadline, in case the machine is slow enough that neither of the above lands */
-  document.addEventListener('visibilitychange', () => { if (document.hidden) finish(); });
-  setTimeout(finish, 5000);
-
-  let i = 0;
-  const tick = () => {
-    if (done) return;
-    el.textContent = INSTALL.slice(0, ++i);
-    if (i < INSTALL.length) setTimeout(tick, 18 + Math.random() * 22);
-    else done = true;
-  };
-  setTimeout(tick, 900);
-})();
-
-/* OS tabs */
-document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
-  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === t));
-  document.querySelectorAll('.pane').forEach(p =>
-    p.classList.toggle('on', p.id === t.dataset.pane));
-});
-
 /* Copy buttons. Selecting a long command by hand is a real source of broken pastes -- a
    half-copied URL fails in a way that looks like the software is broken. */
 function wireCopy(btn, text) {
@@ -617,7 +503,6 @@ function wireCopy(btn, text) {
     setTimeout(() => { ico.textContent = oi; txt.textContent = ot; btn.classList.remove('done'); }, 2600);
   };
 }
-wireCopy(document.getElementById('copyBtn'), INSTALL);
 document.querySelectorAll('.copy[data-copy]').forEach(b => wireCopy(b, b.dataset.copy));
 
 /* ---- one-click installs ----
