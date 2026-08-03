@@ -671,7 +671,7 @@ class Handler(BaseHTTPRequestHandler):
                     # destination, which would otherwise put the operator's username into a
                     # log this page displays.
                     emit({"line": tilde(line.rstrip("\n"))})
-                except (BrokenPipeError, ConnectionResetError):
+                except ConnectionError:
                     # The reader navigated away. Deliberately DON'T kill the build — losing a
                     # five-minute compile to a stray tab close would be its own bug. But keep
                     # consuming stdout to the end, both so the pipe never fills and blocks the
@@ -687,7 +687,7 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 emit({"line": f"✗ Stopped (exit code {code}). The reason is above."})
             emit({"done": True, "ok": code == 0})
-        except (BrokenPipeError, ConnectionResetError):
+        except ConnectionError:
             pass                                  # user navigated away; the script keeps going
         except Exception as exc:
             try:
@@ -754,7 +754,7 @@ class Handler(BaseHTTPRequestHandler):
                 self._run_ours(prompt, ntok, emit)
             else:
                 self._run_rival(backend, prompt, ntok, emit)
-        except (BrokenPipeError, ConnectionResetError):
+        except ConnectionError:
             pass
         except Exception as exc:
             try:
@@ -830,11 +830,14 @@ def main(argv):
         The /run handler already catches BrokenPipe, but http.server ALSO flushes the
         socket in its own teardown after the handler returns — and that flush prints a
         full traceback to the terminal a beginner is watching. Same event, scarier
-        clothes. Suppress exactly that pair; every other error still prints."""
+        clothes. ConnectionError covers the whole family - BrokenPipe, reset,
+        and the ConnectionAborted form Windows raises for the same tab-close
+        (WinError 10053, seen the first time the demo ran natively). Every
+        other error still prints."""
 
         def handle_error(self, request, client_address):
             exc = sys.exc_info()[1]
-            if isinstance(exc, (BrokenPipeError, ConnectionResetError)):
+            if isinstance(exc, ConnectionError):
                 return
             super().handle_error(request, client_address)
 
