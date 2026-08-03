@@ -143,7 +143,7 @@ get tokens back — blocking or streamed, locally, through the driver alone.
 python3 examples/ask.py ~/.hive-limited/models/Qwen3-1.7B "Why is the sky blue?"
 ```
 
-The five-line integration and the full API surface: **[docs/USING_THE_ENGINE.md](docs/USING_THE_ENGINE.md)**.
+The whole integration and the full API surface: **[docs/USING_THE_ENGINE.md](docs/USING_THE_ENGINE.md)**.
 It stays batch-1 and greedy — what this build ships is what your program gets.
 
 ## Requirements

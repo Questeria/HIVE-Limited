@@ -11,7 +11,7 @@ If your application needs batching, sampling temperatures, long-context serving,
 multi-user throughput, this build does not do those and will not grow them (see
 `CONTENTS.md` for what is deliberately absent).
 
-## The five lines that matter
+## The whole integration
 
 ```python
 import sys
