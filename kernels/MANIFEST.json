@@ -1,0 +1,11 @@
+{
+  "note": "sha256 of each shipped PTX. The engine recomputes and enforces these hashes every time it loads a kernel (engine/limited.py), and doctor.sh checks them too.",
+  "kernels": [
+    {"file": "k_devgen.ptx", "sha256": "9515c0aa0b4c2eca2fc208a0680c9e9a4370ef8cb173ed905e918b827731a129", "entries": "argmax_f,argmax_p,fda_warp_pos,gather_emb,kvapp_pos,rope_pos"},
+    {"file": "k_rmsbp.ptx", "sha256": "60d0c79317fba5b2c9c8da08d91ddeb7ef44d81be91c0beeab4114472fd06a09", "entries": "rmsnorm_bp"},
+    {"file": "k_qa8s.ptx", "sha256": "5f62d7e73449b46ad028be33a40b408c7c8abc256d109432c6bce11eac61468a", "entries": "quant_a8s"},
+    {"file": "k_a4gv.ptx", "sha256": "a6daa5c74364545d67adaf42efeed2bfa00b13f6b936fc21d0ef1e9048082be2", "entries": "gemv_wpo_a4"},
+    {"file": "k_silu.ptx", "sha256": "aa09d944f453e388a714b3745770482813e7537ba89c642547c6b4d653efa590", "entries": "gpu_silu_mul"},
+    {"file": "k_vadd.ptx", "sha256": "6363856067271884582053c4a6902a81ee51e4777ed336f9017173a000e69424", "entries": "vec_add"}
+  ]
+}

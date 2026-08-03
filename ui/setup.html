@@ -1,0 +1,733 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HIVE Limited — get started</title>
+<style>
+  :root{
+    --void:#04060d; --panel:#0d1424cc; --line:#1c2942; --ink:#cfe3d8; --dim:#7f93a6;
+    --hive:#3dff9e; --hive-dk:#0d2b1d; --warn:#ffc44d; --rival:#5b9cf5;
+    --mono:"Cascadia Mono","Consolas",ui-monospace,monospace;
+    --disp:"Bahnschrift","Arial Narrow",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  html,body{overflow-x:hidden}
+  @supports (overflow:clip){html,body{overflow-x:clip}}
+  body{margin:0;background:var(--void);color:var(--ink);font-family:var(--mono);
+    font-size:15px;line-height:1.6}
+
+  /* ---- the same sky as the arena: space, drifting stars, aurora ribbons, comets ---- */
+  #space{position:fixed;inset:0;z-index:-3;
+    background:radial-gradient(1200px 700px at 75% -10%,#10203c 0%,transparent 60%),
+      radial-gradient(900px 600px at 10% 110%,#0d1a2e 0%,transparent 55%),
+      linear-gradient(180deg,#030509 0%,#070c18 55%,#0a1120 100%)}
+  .stars{position:fixed;inset:-100px;z-index:-2;pointer-events:none}
+  .stars div{position:absolute;inset:0;border-radius:50%}
+  #st1{animation:drift 240s linear infinite}
+  @keyframes drift{to{transform:translateY(200px)}}
+  .aurora{position:fixed;top:-12%;left:-16%;width:70%;height:44%;z-index:-2;pointer-events:none;
+    background:radial-gradient(58% 42% at 50% 50%,rgba(61,255,158,.14),rgba(61,255,158,.05) 55%,transparent 75%);
+    filter:blur(28px);transform:rotate(-16deg);
+    animation:aur 26s ease-in-out infinite alternate;will-change:transform,opacity}
+  .aurora.a2{left:auto;right:-18%;top:24%;transform:rotate(14deg);
+    background:radial-gradient(58% 42% at 50% 50%,rgba(91,156,245,.12),rgba(91,156,245,.04) 55%,transparent 75%);
+    animation-duration:34s;animation-delay:-12s}
+  @keyframes aur{from{transform:rotate(-16deg) translateY(0) scale(1);opacity:.75}
+    to{transform:rotate(-12deg) translateY(46px) scale(1.12);opacity:1}}
+  .comet{position:fixed;z-index:-1;pointer-events:none;opacity:0;
+    background:linear-gradient(90deg,transparent 0%,rgba(150,200,255,.10) 34%,rgba(190,225,255,.5) 76%,#eaf6ff 100%);
+    clip-path:polygon(0 50%,100% 0,100% 100%);
+    filter:drop-shadow(0 0 6px rgba(160,210,255,.55))}
+  .comet::after{content:"";position:absolute;right:-2px;top:50%;width:8px;height:8px;margin-top:-4px;
+    border-radius:50%;background:radial-gradient(circle,#fff 26%,#cfe8ff 56%,transparent 74%);
+    box-shadow:0 0 10px 3px #d6ecff,0 0 22px 7px rgba(150,200,255,.4)}
+  .comet.c1{top:11%;left:-240px;width:230px;height:6px;animation:comet1 15s cubic-bezier(.45,.02,.6,1) 4s infinite}
+  .comet.c2{top:27%;left:-170px;width:150px;height:4px;animation:comet2 19s cubic-bezier(.5,.02,.6,1) 12s infinite}
+  @keyframes comet1{0%,78%{opacity:0;transform:translate(0,0) rotate(17deg)}
+    82%{opacity:1}98%{opacity:1}100%{opacity:0;transform:translate(122vw,44vh) rotate(23deg)}}
+  @keyframes comet2{0%,84%{opacity:0;transform:translate(0,0) rotate(12deg)}
+    88%{opacity:.9}99%{opacity:.9}100%{opacity:0;transform:translate(120vw,34vh) rotate(17deg)}}
+
+  .wrap{max-width:820px;margin:0 auto;padding:24px 20px 100px;position:relative}
+  a{color:var(--hive)}
+
+  .back{display:inline-block;margin-bottom:26px;color:var(--dim);text-decoration:none;
+    border:1px solid var(--line);border-radius:20px;padding:6px 15px;font-size:13px;
+    transition:.18s}
+  .back:hover{color:var(--hive);border-color:var(--hive);transform:translateX(-3px)}
+
+  h1{font-family:var(--disp);font-size:38px;letter-spacing:.02em;margin:0 0 6px;
+     background:linear-gradient(92deg,#fff,var(--hive));-webkit-background-clip:text;
+     background-clip:text;color:transparent}
+  .lede{color:var(--dim);margin:0 0 34px;font-size:16px}
+
+  /* ---------- reveal on load ---------- */
+  .rise{opacity:0;transform:translateY(18px);animation:rise .62s cubic-bezier(.2,.7,.3,1) forwards}
+  @keyframes rise{to{opacity:1;transform:none}}
+
+  /* ---------- requirement chips ---------- */
+  .needs{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;
+    margin:0 0 38px}
+  .need{border:1px solid var(--line);border-radius:11px;background:var(--panel);
+    padding:14px 15px;display:flex;gap:12px;align-items:flex-start;transition:.2s}
+  .need:hover{border-color:#2b4767;transform:translateY(-2px)}
+  .need .ic{font-size:22px;line-height:1;filter:drop-shadow(0 0 8px #3dff9e55)}
+  .need b{display:block;font-size:13.5px;margin-bottom:1px}
+  .need span{color:var(--dim);font-size:12.5px;line-height:1.45}
+
+  /* ---------- steps ---------- */
+  .steps{position:relative;padding-left:52px}
+  .steps::before{content:"";position:absolute;left:19px;top:12px;bottom:60px;width:2px;
+    background:linear-gradient(180deg,var(--hive),#2b4767 60%,transparent);
+    animation:grow 1.4s .3s cubic-bezier(.4,0,.2,1) backwards}
+  @keyframes grow{from{transform:scaleY(0);transform-origin:top}}
+
+  .step{position:relative;margin:0 0 34px}
+  .step .num{position:absolute;left:-52px;top:-2px;width:40px;height:40px;border-radius:50%;
+    display:grid;place-items:center;font-family:var(--disp);font-size:19px;font-weight:700;
+    background:var(--hive);color:#04060d;box-shadow:0 0 0 5px var(--void),0 0 22px #3dff9e66}
+  .step h2{font-family:var(--disp);font-size:22px;margin:0 0 4px;letter-spacing:.01em}
+  .step .sub{color:var(--dim);font-size:14px;margin:0 0 14px}
+
+  /* ---------- OS tabs ---------- */
+  .tabs{display:flex;gap:8px;margin:0 0 14px}
+  .tab{flex:0 0 auto;border:1px solid var(--line);background:transparent;color:var(--dim);
+    font:600 13px var(--mono);border-radius:8px;padding:8px 16px;cursor:pointer;transition:.18s}
+  .tab:hover{color:var(--ink);border-color:#2b4767}
+  .tab.on{background:var(--hive-dk);border-color:var(--hive);color:var(--hive)}
+  .pane{display:none;animation:fade .35s ease}
+  .pane.on{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}}
+
+  ol.mini{margin:0;padding-left:20px}
+  ol.mini li{margin:8px 0}
+  ol.mini li::marker{color:var(--hive);font-weight:700}
+
+  /* ---------- terminal ---------- */
+  .term{border:1px solid var(--line);border-radius:11px;overflow:hidden;background:#070c17;
+    box-shadow:0 10px 34px #0006;margin:0 0 12px}
+  .termbar{display:flex;align-items:center;gap:7px;padding:9px 13px;background:#0c1322;
+    border-bottom:1px solid var(--line)}
+  .dot{width:11px;height:11px;border-radius:50%}
+  .dot.r{background:#ff5f57}.dot.y{background:#febc2e}.dot.g{background:#28c840}
+  .termttl{margin-left:8px;color:var(--dim);font-size:12px}
+  .termbody{padding:14px 15px;font-size:13.5px;min-height:52px;
+    white-space:pre-wrap;word-break:break-all}
+  .prompt{color:var(--hive);user-select:none}
+  .caret{display:inline-block;width:8px;height:16px;background:var(--hive);
+    vertical-align:-3px;animation:blink 1.05s steps(2) infinite}
+  @keyframes blink{50%{opacity:0}}
+
+  .copy{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--hive);
+    background:var(--hive);color:#04060d;font:700 13px var(--mono);border-radius:8px;
+    padding:9px 16px;cursor:pointer;transition:.18s}
+  .copy:hover{filter:brightness(1.12)}
+  .copy.done{background:transparent;color:var(--hive)}
+  .hint{color:var(--dim);font-size:12.5px;margin:8px 0 0}
+
+  /* ---------- browser mock ---------- */
+  .brow{border:1px solid var(--line);border-radius:11px;overflow:hidden;background:#070c17;
+    box-shadow:0 10px 34px #0006}
+  .browbar{display:flex;align-items:center;gap:9px;padding:9px 12px;background:#0c1322;
+    border-bottom:1px solid var(--line)}
+  .url{flex:1;background:#04060d;border:1px solid var(--line);border-radius:16px;
+    padding:5px 13px;font-size:12.5px;color:var(--ink)}
+  .url b{color:var(--hive);font-weight:600}
+  .browbody{padding:24px 18px;text-align:center}
+  .rocket{font-size:34px;display:inline-block;animation:fly 2.6s ease-in-out infinite}
+  @keyframes fly{0%,100%{transform:translateY(0) rotate(-8deg)}50%{transform:translateY(-11px) rotate(-8deg)}}
+  .browbody p{margin:8px 0 0;color:var(--dim);font-size:13px}
+
+  /* ---------- optional / details ---------- */
+  .opt{border:1px solid var(--line);border-radius:12px;background:var(--panel);
+    padding:20px 22px;margin:40px 0 0}
+  .opt h2{font-family:var(--disp);font-size:20px;margin:0 0 4px}
+  .opt .sub{color:var(--dim);font-size:14px;margin:0 0 14px}
+
+  details{border:1px solid var(--line);border-radius:10px;background:var(--panel);
+    margin:10px 0 0;overflow:hidden}
+  details summary{padding:13px 16px;cursor:pointer;font-size:14px;list-style:none;
+    display:flex;align-items:center;gap:9px;transition:.15s}
+  details summary::-webkit-details-marker{display:none}
+  details summary::before{content:"▸";color:var(--hive);transition:transform .22s}
+  details[open] summary::before{transform:rotate(90deg)}
+  details summary:hover{background:#ffffff06}
+  .dbody{padding:2px 16px 16px 34px;color:var(--dim);font-size:13.5px}
+  .dbody code,.icode{background:#070c17;border:1px solid var(--line);border-radius:5px;
+    padding:2px 7px;color:var(--hive);font-size:12.5px;white-space:nowrap}
+  .dbody p{margin:8px 0}
+
+  /* ---------- rival picker + mini steps ---------- */
+  .pick{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;
+    margin:0 0 22px}
+  .pickcard{border:1px solid var(--line);border-radius:10px;background:#070c17;padding:13px 15px;
+    transition:.2s}
+  .pickcard:hover{border-color:#2b4767;transform:translateY(-2px)}
+  .pickhd{display:flex;align-items:center;gap:9px;margin-bottom:5px}
+  .pickhd b{font-size:15px}
+  .tagx{font:700 10px var(--mono);letter-spacing:.09em;text-transform:uppercase;
+    background:var(--hive-dk);color:var(--hive);border:1px solid var(--hive);
+    border-radius:20px;padding:2px 8px}
+  .pickcard p{margin:0 0 6px;color:var(--dim);font-size:13px;line-height:1.5}
+  .tiny{color:var(--dim);font-size:12.5px;line-height:1.5;margin:6px 0 0}
+
+  /* ---------- one-click installers ---------- */
+  .autos{display:flex;flex-direction:column;gap:11px;margin:0 0 14px}
+  .auto{border:1px solid var(--line);border-radius:10px;background:#070c17;overflow:hidden}
+  .autohd{display:flex;align-items:center;justify-content:space-between;gap:14px;
+    padding:13px 15px}
+  .autohd b{display:block;font-size:14.5px}
+  .autost{display:block;color:var(--dim);font-size:12.5px;margin-top:2px}
+  .autost.ready{color:var(--hive)}
+  .autost.busy{color:var(--warn)}
+  .doit{flex:0 0 auto;border:1px solid var(--hive);background:var(--hive);color:#04060d;
+    font:700 13px var(--mono);border-radius:8px;padding:8px 18px;cursor:pointer;
+    transition:.16s;white-space:nowrap}
+  .doit:hover:not(:disabled){filter:brightness(1.13)}
+  .doit:disabled{opacity:.45;cursor:default}
+  .doit.done{background:transparent;color:var(--hive);cursor:default}
+  .autolog{display:none;margin:0;padding:11px 15px 14px;background:#04060d;
+    border-top:1px solid var(--line);font-size:12px;line-height:1.5;color:var(--dim);
+    max-height:240px;overflow-y:auto;white-space:pre-wrap;word-break:break-word}
+  .autolog.on{display:block}
+  .autolog b{color:var(--hive)}
+  .badge{display:inline-block;font:700 10px var(--mono);letter-spacing:.08em;
+    text-transform:uppercase;background:#12432c;color:var(--hive);border:1px solid var(--hive);
+    border-radius:20px;padding:1px 8px;margin-left:7px;vertical-align:1px}
+
+  .tested{border:1px solid #2b4767;border-radius:11px;background:#070c17;
+    padding:16px 18px;margin:22px 0 14px}
+  .tested h3{font-family:var(--disp);font-size:16px;margin:0 0 5px}
+  .trow{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    margin:14px 0 7px;flex-wrap:wrap}
+  .tinfo b{display:block;font-size:14px}
+  .tinfo span{color:var(--dim);font-size:12.5px}
+  .warnbox{border-left:3px solid var(--warn);background:#1a140233;padding:11px 14px;
+    border-radius:0 7px 7px 0;margin-top:16px !important}
+  .warnbox b{color:var(--warn)}
+
+  .mtab{width:100%;border-collapse:collapse;margin:9px 0;font-size:12.5px}
+  .mtab td{padding:5px 10px 5px 0;border-bottom:1px solid var(--line);color:var(--dim);
+    vertical-align:top}
+  .mtab td:first-child{white-space:nowrap;color:var(--ink)}
+  .mtab td:nth-child(2){white-space:nowrap;color:var(--hive)}
+
+  .ministeps{display:flex;flex-direction:column;gap:20px;margin:0 0 6px}
+  .ms{display:flex;gap:14px;align-items:flex-start}
+  .msn{flex:0 0 auto;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;
+    font:700 13px var(--disp);background:#12432c;color:var(--hive);
+    border:1px solid var(--hive);margin-top:2px}
+  .ms > div{flex:1;min-width:0}
+  .ms b{display:block;margin-bottom:7px;font-size:14.5px}
+  .term.sm{margin:0 0 9px}
+  .term.sm .termbody{padding:10px 13px;min-height:0;font-size:13px}
+  .copy.sm{padding:6px 13px;font-size:12px}
+  .brow.sm{margin-top:11px}
+
+  .foot{margin-top:44px;padding-top:20px;border-top:1px solid var(--line);
+    color:var(--dim);font-size:13px}
+  @media (max-width:560px){
+    h1{font-size:30px}
+    .steps{padding-left:42px}
+    .steps::before{left:15px}
+    .step .num{left:-42px;width:32px;height:32px;font-size:16px}
+  }
+</style>
+
+<div id="space"></div>
+<div class="stars"><div id="st1"></div></div>
+<div class="aurora"></div><div class="aurora a2"></div>
+<div class="comet c1"></div>
+<div class="comet c2"></div>
+
+<div class="wrap">
+  <a class="back" href="/">← back to the arena</a>
+
+  <h1 class="rise">Get started</h1>
+  <p class="lede rise" style="animation-delay:.06s">
+    Three steps. About 10 minutes, and most of that is just downloading.
+    No coding, no GitHub account.
+  </p>
+
+  <div class="needs rise" style="animation-delay:.12s">
+    <div class="need"><span class="ic">🎮</span><div>
+      <b>A NVIDIA graphics card</b><span>The kind used for gaming</span></div></div>
+    <div class="need"><span class="ic">💻</span><div>
+      <b>Windows or Linux</b><span>No Mac — they have no NVIDIA card</span></div></div>
+    <div class="need"><span class="ic">💾</span><div>
+      <b>8 GB free space</b><span>The AI model is about 4 GB</span></div></div>
+  </div>
+
+  <div class="steps">
+
+    <!-- STEP 1 -->
+    <div class="step rise" style="animation-delay:.2s">
+      <div class="num">1</div>
+      <h2>Open a terminal</h2>
+      <p class="sub">A window where you type commands. Looks scarier than it is.</p>
+
+      <div class="tabs" role="tablist">
+        <button class="tab on" data-pane="win">Windows</button>
+        <button class="tab" data-pane="lin">Linux</button>
+      </div>
+
+      <div class="pane on" id="win">
+        <ol class="mini">
+          <li>Press <span class="icode">Start</span>, type <b>PowerShell</b>, right-click it,
+              choose <b>Run as administrator</b></li>
+          <li>Type <span class="icode">wsl --install</span> and press Enter</li>
+          <li><b>Restart your computer</b> when it asks</li>
+          <li>Press <span class="icode">Start</span>, type <b>Ubuntu</b>, open it</li>
+          <li>Make up a username and password.
+              <span style="color:var(--dim)">The password stays invisible as you type — that is normal.</span></li>
+        </ol>
+        <p class="hint">That Ubuntu window is your terminal. One-time setup — you will not do this again.</p>
+      </div>
+
+      <div class="pane" id="lin">
+        <p style="margin:0">Press <span class="icode">Ctrl</span> +
+           <span class="icode">Alt</span> + <span class="icode">T</span>.</p>
+        <p class="hint">That's the whole step.</p>
+      </div>
+    </div>
+
+    <!-- STEP 2 -->
+    <div class="step rise" style="animation-delay:.28s">
+      <div class="num">2</div>
+      <h2>Paste one line</h2>
+      <p class="sub">This does everything else for you.</p>
+
+      <div class="term">
+        <div class="termbar">
+          <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+          <span class="termttl">your terminal</span>
+        </div>
+        <div class="termbody"><span class="prompt">$ </span><span id="typed"></span><span class="caret"></span></div>
+      </div>
+
+      <button class="copy" id="copyBtn"><span id="copyIco">⧉</span><span id="copyTxt">Copy this line</span></button>
+      <p class="hint">
+        <b>Ctrl+V often does nothing in a terminal.</b> Use <b>right-click</b>, or
+        <span class="icode">Ctrl</span>+<span class="icode">Shift</span>+<span class="icode">V</span>.
+      </p>
+      <p class="hint">
+        Then press Enter and leave it running. It tells you what it is doing, and if anything is
+        missing it says exactly what to type.
+      </p>
+    </div>
+
+    <!-- STEP 3 -->
+    <div class="step rise" style="animation-delay:.36s">
+      <div class="num">3</div>
+      <h2>Open your browser</h2>
+      <p class="sub">When it says it's ready, go to this address.</p>
+
+      <div class="brow">
+        <div class="browbar">
+          <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+          <span class="url">http://<b>localhost:8080</b></span>
+        </div>
+        <div class="browbody">
+          <span class="rocket">🚀</span>
+          <p>Type a question, press <b>LAUNCH</b>, watch it answer.</p>
+        </div>
+      </div>
+      <p class="hint">
+        Another day? Start it again with
+        <span class="icode">~/hive-limited/start.sh</span>
+      </p>
+    </div>
+
+  </div>
+
+  <!-- THE TWO PIECES -->
+  <div class="opt rise" style="animation-delay:.42s">
+    <h2>🧩 Two different things you can add</h2>
+    <p class="sub">
+      Worth thirty seconds, because the next two sections do different jobs and the words look
+      alike.
+    </p>
+    <div class="pick">
+      <div class="pickcard">
+        <div class="pickhd"><b>⚙️ An engine</b></div>
+        <p>The <b>software</b> that runs an AI. HIVE Limited is one. llama.cpp and vLLM are
+           others. Install one of those to <b>race against</b>.</p>
+      </div>
+      <div class="pickcard">
+        <div class="pickhd"><b>🧠 A model</b></div>
+        <p>The <b>AI itself</b> — its knowledge and personality, in a file. Qwen3-1.7B is one.
+           Every engine needs a model to run.</p>
+      </div>
+    </div>
+    <p class="tiny" style="margin-top:12px">
+      A race is <b>two engines</b> running <b>the same model</b>. That is the whole idea: hold the
+      AI fixed, change only the software underneath, and the difference you see is the engine.
+    </p>
+  </div>
+
+  <!-- RIVAL ENGINE -->
+  <div class="opt rise" id="engines" style="animation-delay:.44s">
+    <h2>⚙️ Add a rival engine</h2>
+    <p class="sub">
+      Don't take our word for anything. Install another piece of AI software and watch it answer
+      the same question, on your computer, next to ours.
+    </p>
+
+    <div class="pick">
+      <div class="pickcard">
+        <div class="pickhd"><b>llama.cpp</b><span class="tagx">recommended</span></div>
+        <p>The most popular way to run AI at home. Runs the same model as HIVE, in the same
+           4-bit size — so the race is about the engine, not the file.</p>
+        <p class="tiny">~5 min to build · needs the CUDA Toolkit</p>
+      </div>
+      <div class="pickcard">
+        <div class="pickhd"><b>vLLM</b></div>
+        <p>The standard engine for AI servers. Heavier: it brings PyTorch and several GB of
+           NVIDIA libraries with it.</p>
+        <p class="tiny">~10 min · several GB download</p>
+      </div>
+    </div>
+
+    <div class="autos">
+      <div class="auto" data-install="llamacpp">
+        <div class="autohd">
+          <div><b>llama.cpp</b><span class="autost" data-for="llamacpp">checking…</span></div>
+          <button class="doit" data-what="llamacpp">Install</button>
+        </div>
+        <pre class="autolog" data-log="llamacpp"></pre>
+      </div>
+      <div class="auto" data-install="vllm">
+        <div class="autohd">
+          <div><b>vLLM</b><span class="autost" data-for="vllm">checking…</span></div>
+          <button class="doit" data-what="vllm">Install</button>
+        </div>
+        <pre class="autolog" data-log="vllm"></pre>
+      </div>
+    </div>
+
+    <p class="tiny">
+      The button runs the same script you could run yourself, and shows you everything it
+      prints. It takes a few minutes; you can leave this page open and watch, or go and make
+      tea. When it finishes, the arena's dropdown picks it up on the next reload.
+    </p>
+
+    <details style="margin-top:12px">
+      <summary>I'd rather type it myself</summary>
+      <div class="dbody">
+        <p>Same thing, from your terminal:</p>
+        <p><code>~/hive-limited/setup/install_llamacpp.sh</code></p>
+        <p><code>~/hive-limited/setup/install_vllm.sh</code></p>
+      </div>
+    </details>
+
+    <p class="hint">
+      <b>Already running your own AI?</b> If you use Ollama, LM Studio, or your own build of
+      llama.cpp or vLLM, you do not need to install anything. Just have it serving on port
+      <b>8081</b> (llama.cpp), <b>8082</b> (vLLM) or <b>8083</b> (TensorRT-LLM) before you open
+      the arena, and it will be used exactly as you configured it.
+    </p>
+
+    <details style="margin-top:14px">
+      <summary>Advanced: your own engine, your own model, port numbers</summary>
+      <div class="dbody">
+        <p>Anything that speaks the <b>OpenAI streaming API</b> works — SGLang, TGI, Ollama,
+          LM Studio, or a build you made yourself. Serve it on the port the arena expects and
+          it is picked up as-is:</p>
+        <p><code>llama.cpp → 8081</code> &nbsp; <code>vLLM → 8082</code> &nbsp;
+           <code>TensorRT-LLM → 8083</code></p>
+        <p>To point HIVE Limited at a different model, give it any folder containing
+          <code>config.json</code> and <code>*.safetensors</code>:</p>
+        <p><code>~/hive-limited/start.sh /path/to/your-model</code></p>
+        <p>Adding a brand-new engine, matching model formats between the two lanes, what the
+          race does and does not measure, and the hardware-panel settings for WSL are all in
+          the full guide:
+          <a href="https://github.com/Questeria/HIVE-Limited/blob/main/docs/ENGINES.md">docs/ENGINES.md</a>.</p>
+      </div>
+    </details>
+  </div>
+
+  <!-- MODELS -->
+  <div class="opt rise" id="models" style="animation-delay:.48s">
+    <h2>🧠 Choose an AI model</h2>
+    <p class="sub">
+      Install as many as you like and switch between them from the arena — no restart, no file
+      paths. Both engines always switch together, so the race stays fair.
+    </p>
+
+    <div class="autos" id="modelList">
+      <p class="tiny">loading…</p>
+    </div>
+
+    <p class="tiny">
+      Once a model is installed, pick it from the <b>model</b> dropdown at the top of the arena.
+      It swaps over in about a minute — no restart, no file paths — and both engines switch
+      together so the race stays fair.
+    </p>
+
+    <p class="tiny warnbox">
+      <b>About the ones marked “used for our published results”.</b> Installing one lets you run
+      the same model against the same rival we did — that part is real. It will <b>not</b>
+      reproduce the numbers on the arena's board: those came from the <b>full engine</b>, which
+      is not in this repository, on the hardware named in each row. This build is batch-1 with no
+      optimised prefill, so expect lower figures and treat anything you measure here as a result
+      about <b>HIVE Limited</b>.
+    </p>
+
+    <details style="margin-top:12px">
+      <summary>I'd rather type it myself, or want a different model</summary>
+      <div class="dbody">
+        <p>The menu, from your terminal:</p>
+        <p><code>~/hive-limited/setup/download_models.sh</code></p>
+        <p>Or any Qwen3 model from HuggingFace by name:</p>
+        <p><code>~/hive-limited/setup/download_models.sh Qwen/Qwen3-14B</code></p>
+        <p>Only Qwen3 works — this build ships kernels for that design only.</p>
+      </div>
+    </details>
+
+    <details style="margin-top:6px">
+      <summary>Why each model downloads twice</summary>
+      <div class="dbody">
+        <p>HIVE and vLLM read one file format; llama.cpp reads another called <b>GGUF</b>. It is
+           the same AI packaged two ways, so the script fetches both.</p>
+        <p>This matters more than it sounds. Both lanes have to run <b>the same model</b> or the
+           race means nothing — and a mismatch would not look like an error, it would look like a
+           perfectly normal result with a meaningless number. So the arena hands the chosen model
+           to every engine rather than letting each pick its own file, and if a model is missing
+           one of the two formats the dropdown says <b>HIVE only</b> and tells you which engine
+           cannot run it, before you race rather than after.</p>
+      </div>
+    </details>
+  </div>
+
+  <!-- TROUBLE -->
+  <div class="rise" style="animation-delay:.5s">
+    <h2 style="font-family:var(--disp);font-size:20px;margin:40px 0 4px">Something went wrong?</h2>
+    <p class="sub" style="color:var(--dim);font-size:14px;margin:0 0 6px">
+      Click whichever matches. Copy-paste fixes.
+    </p>
+
+    <details><summary>“curl: command not found”</summary>
+      <div class="dbody"><p>Install it, then paste the line from Step 2 again:</p>
+      <p><code>sudo apt update &amp;&amp; sudo apt install -y curl</code></p></div></details>
+
+    <details><summary>“No NVIDIA graphics driver found”</summary>
+      <div class="dbody">
+      <p>On <b>Windows</b>: install the normal driver from
+         <a href="https://www.nvidia.com/drivers">nvidia.com/drivers</a> — in Windows itself,
+         not inside Ubuntu — then close and reopen the Ubuntu window.</p>
+      <p>You do <b>not</b> need the big “CUDA Toolkit”.</p>
+      <p>On <b>Ubuntu</b>: <code>sudo ubuntu-drivers autoinstall</code> then reboot.</p></div></details>
+
+    <details><summary>The download stopped partway</summary>
+      <div class="dbody"><p>Run the same line again. It keeps what it already downloaded and
+      carries on from there.</p></div></details>
+
+    <details><summary>“Permission denied”</summary>
+      <div class="dbody"><p><code>chmod +x ~/hive-limited/start.sh</code></p></div></details>
+
+    <details><summary>The page won't open in my browser</summary>
+      <div class="dbody"><p>Check the terminal still shows it running. If you closed that window
+      the program stopped — start it again:</p>
+      <p><code>~/hive-limited/start.sh</code></p></div></details>
+
+    <details><summary>Something else entirely</summary>
+      <div class="dbody"><p>Email <a href="mailto:ajdemarco10@gmail.com">ajdemarco10@gmail.com</a>
+      with what you typed and what it said. A copy-paste of the error is enough — you do not need
+      to explain it.</p></div></details>
+  </div>
+
+  <p class="foot">
+    This is a deliberately <b>limited</b> demonstration build — it answers one question at a time
+    and is not the full HIVE engine. Everything it shows you, it measured on your machine while
+    you watched. Full-engine results, including where NVIDIA is still ahead of us, are on the
+    arena page. To see the unrestricted engine:
+    <a href="mailto:ajdemarco10@gmail.com">ajdemarco10@gmail.com</a>.
+  </p>
+</div>
+
+<script>
+/* Starfield, generated the same way the arena does it: 150 tiny box-shadows on one element,
+   so the whole sky costs a single DOM node and no image request. */
+(function () {
+  const sh = [];
+  for (let i = 0; i < 150; i++) sh.push(`${Math.random()*100}vw ${Math.random()*130}vh 0 #8fa8c8`);
+  const el = document.getElementById('st1');
+  el.style.width = el.style.height = '1px';
+  el.style.boxShadow = sh.join(',');
+})();
+
+const INSTALL = 'curl -fsSL https://raw.githubusercontent.com/Questeria/HIVE-Limited/main/install.sh | bash';
+
+/* Type the command out rather than printing it: a beginner is about to paste a long line of
+   symbols into a black window, and watching it appear makes it read as something ordinary
+   rather than something to be afraid of. Respect prefers-reduced-motion. */
+(function type() {
+  const el = document.getElementById('typed');
+  if (!el) return;
+  let done = false;
+  const finish = () => { done = true; el.textContent = INSTALL; };
+
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { finish(); return; }
+
+  /* Three ways this ends, because a half-typed command looks broken and this is the one
+     line the whole page exists to deliver:
+       - it finishes typing (the normal case, ~2 s)
+       - the tab is hidden: browsers clamp setTimeout to ~1 s in the background, so an
+         animation left running there would still be crawling on return
+       - a 5 s deadline, in case the machine is slow enough that neither of the above lands */
+  document.addEventListener('visibilitychange', () => { if (document.hidden) finish(); });
+  setTimeout(finish, 5000);
+
+  let i = 0;
+  const tick = () => {
+    if (done) return;
+    el.textContent = INSTALL.slice(0, ++i);
+    if (i < INSTALL.length) setTimeout(tick, 18 + Math.random() * 22);
+    else done = true;
+  };
+  setTimeout(tick, 900);
+})();
+
+/* OS tabs */
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === t));
+  document.querySelectorAll('.pane').forEach(p =>
+    p.classList.toggle('on', p.id === t.dataset.pane));
+});
+
+/* Copy buttons. Selecting a long command by hand is a real source of broken pastes -- a
+   half-copied URL fails in a way that looks like the software is broken. */
+function wireCopy(btn, text) {
+  btn.onclick = async () => {
+    let done = false;
+    try { await navigator.clipboard.writeText(text); done = true; }
+    catch (e) {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { done = document.execCommand('copy'); } catch (_) {}
+      ta.remove();
+    }
+    const spans = btn.querySelectorAll('span');
+    const ico = spans[0], txt = spans[1];
+    const oi = ico.textContent, ot = txt.textContent;
+    ico.textContent = done ? '✓' : '⚠';
+    txt.textContent = done ? 'Copied — now paste it in the terminal' : 'Select it and copy by hand';
+    btn.classList.add('done');
+    setTimeout(() => { ico.textContent = oi; txt.textContent = ot; btn.classList.remove('done'); }, 2600);
+  };
+}
+wireCopy(document.getElementById('copyBtn'), INSTALL);
+document.querySelectorAll('.copy[data-copy]').forEach(b => wireCopy(b, b.dataset.copy));
+
+/* ---- one-click installs ----
+   Whoever is reading this page is, by definition, already running the server. Telling them
+   to open a terminal and retype a command the server could run itself is friction with
+   nothing behind it. So the buttons run the same scripts and stream the output back.
+
+   Everything the script prints is shown. A five-minute build behind a silent spinner is
+   indistinguishable from a hung one, and the scripts already narrate themselves. */
+function runInstall(what, name, btn, log, onDone) {
+  btn.disabled = true;
+  const label = btn.textContent;
+  btn.textContent = 'Working…';
+  log.classList.add('on');
+  log.textContent = '';
+  const q = '/install?what=' + encodeURIComponent(what)
+          + (name ? '&name=' + encodeURIComponent(name) : '');
+  const es = new EventSource(q);
+  let ok = false;
+  es.onmessage = e => {
+    const d = JSON.parse(e.data);
+    if (d.line !== undefined) {
+      log.textContent += d.line + '\n';
+      log.scrollTop = log.scrollHeight;      /* follow the tail as it grows */
+    }
+    if (d.done) {
+      ok = !!d.ok;
+      es.close();
+      btn.textContent = ok ? '✓ Installed' : 'Try again';
+      btn.disabled = ok;
+      if (ok) btn.classList.add('done');
+      if (onDone) onDone(ok);
+    }
+  };
+  es.onerror = () => {
+    es.close();
+    if (!ok) {
+      log.textContent += '\nThe connection dropped. The install may still be running in the '
+                       + 'background — reload this page to see its current state.\n';
+      btn.disabled = false;
+      btn.textContent = label;
+    }
+  };
+}
+
+/* Engines: reflect what is ALREADY installed before offering to install it. */
+fetch('/engines').then(r => r.json()).then(info => {
+  const st = info.rivals || {};
+  document.querySelectorAll('.auto[data-install]').forEach(card => {
+    const key = card.dataset.install;
+    const s = st[key];
+    const status = card.querySelector('.autost');
+    const btn = card.querySelector('.doit');
+    const log = card.querySelector('.autolog');
+    if (!s) return;
+    if (s.available) {
+      status.textContent = s.serving ? 'installed and running' : 'installed';
+      status.classList.add('ready');
+      btn.textContent = '✓ Installed';
+      btn.disabled = true;
+      btn.classList.add('done');
+    } else {
+      status.textContent = key === 'llamacpp'
+        ? 'not installed · builds from source, about 5 minutes'
+        : 'not installed · several GB, about 10 minutes';
+    }
+    btn.onclick = () => runInstall(key, null, btn, log);
+  });
+}).catch(() => {});
+
+/* Models: the list is BUILT from the server's catalogue rather than written here, so the
+   page cannot drift from what download_models.sh actually offers. */
+fetch('/models').then(r => r.json()).then(info => {
+  const wrap = document.getElementById('modelList');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  for (const c of info.catalogue) {
+    const card = document.createElement('div');
+    card.className = 'auto';
+    const tested = c.tested
+      ? `<span class="badge">used for our published results</span>` : '';
+    card.innerHTML = `
+      <div class="autohd">
+        <div>
+          <b>${c.name}${tested}</b>
+          <span class="autost">${c.installed ? 'installed' : c.size + ' · ' + c.note}</span>
+          ${c.tested ? `<span class="autost">${c.tested}</span>` : ''}
+        </div>
+        <button class="doit">${c.installed ? '✓ Installed' : 'Download'}</button>
+      </div>
+      <pre class="autolog"></pre>`;
+    const btn = card.querySelector('.doit');
+    const log = card.querySelector('.autolog');
+    if (c.installed) {
+      btn.disabled = true; btn.classList.add('done');
+      card.querySelector('.autost').classList.add('ready');
+    } else {
+      btn.onclick = () => runInstall('model', c.key, btn, log);
+    }
+    wrap.appendChild(card);
+  }
+}).catch(() => {
+  const wrap = document.getElementById('modelList');
+  if (wrap) wrap.innerHTML = '<p class="tiny">Could not reach the server — is it still '
+                           + 'running? Start it with <code>~/hive-limited/start.sh</code></p>';
+});
+
+/* Default the OS tab to what the visitor is actually on, so the common case needs no click. */
+if (!/Win/i.test(navigator.platform || '') && /Linux/i.test(navigator.platform || '')) {
+  const lin = document.querySelector('.tab[data-pane="lin"]');
+  if (lin) lin.click();
+}
+</script>

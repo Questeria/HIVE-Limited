@@ -1,0 +1,25 @@
+# Line endings are LF IN THE REPOSITORY, always.
+#
+# This is not a style preference. This repo is developed on Windows, where git's
+# core.autocrlf checks files out as CRLF -- and CRLF found its way into the committed
+# blobs. A shell script stored with CRLF fails on Linux at its first line:
+#
+#     bash: setup/install_llamacpp.sh: line 2: $'\r': command not found
+#
+# ...which would have broken the primary onboarding path for everyone who clones, while
+# working perfectly on the machine it was written on. The setup scripts are the first
+# thing a new user runs.
+#
+# `text=auto eol=lf` normalises on commit and checks out LF everywhere, so what is stored
+# is what Linux runs. The explicit lines below are belt-and-braces for the files where a
+# stray CR is fatal rather than cosmetic.
+
+* text=auto eol=lf
+
+*.sh   text eol=lf
+*.py   text eol=lf
+*.md   text eol=lf
+*.html text eol=lf
+*.json text eol=lf
+*.ptx  text eol=lf
+LICENSE text eol=lf

@@ -1,0 +1,68 @@
+# HIVE Limited — allow-list only.
+#
+# This repository is curated by ALLOW-LIST, never by deleting from a full copy:
+# a deleted file is one `git log` away, and the withheld material must never appear
+# in ANY commit of this repository.
+#
+# Per-file on purpose: a directory glob ships whatever lands in the directory,
+# which is exactly how an accident happens. Every shipped path is named.
+
+*
+!.gitignore
+!.gitattributes
+!LICENSE
+!README.md
+!QUICKSTART.md
+!REFERENCE.md
+!CONTENTS.md
+!install.sh
+!install.ps1
+!doctor.sh
+!bench.sh
+!bench.py
+!verify.sh
+!verify.py
+!serve.py
+
+!engine/
+!engine/cudrv.py
+!engine/limited.py
+!engine/models.py
+!engine/qwen3_tokenizer.py
+!engine/reference.py
+!engine/rivals.py
+!engine/tokenizer_min.py
+
+!ui/
+!ui/index.html
+!ui/setup.html
+
+!kernels/
+!kernels/MANIFEST.json
+!kernels/k_a4gv.ptx
+!kernels/k_devgen.ptx
+!kernels/k_qa8s.ptx
+!kernels/k_rmsbp.ptx
+!kernels/k_silu.ptx
+!kernels/k_vadd.ptx
+
+!docs/
+!docs/ENGINES.md
+!docs/UI_PORT.md
+!docs/VERIFY.md
+!docs/USING_THE_ENGINE.md
+!docs/img/
+!docs/img/arena.png
+!docs/img/race.png
+!docs/img/setup.png
+
+!examples/
+!examples/ask.py
+
+!setup/
+!setup/download_models.sh
+!setup/install_llamacpp.sh
+!setup/install_vllm.sh
+
+__pycache__/
+*.pyc

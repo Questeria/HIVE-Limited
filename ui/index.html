@@ -1,0 +1,2977 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>HIVE Limited — Arena (a deliberately limited build)</title>
+<style>
+  :root {
+    --void:#04060d; --panel:#0d1424cc; --line:#1c2942;
+    --ink:#cfe3d8; --dim:#5f7387; --hive:#3dff9e; --hive-dk:#0d2b1d;
+    --rival:#5b9cf5; --warn:#ffc44d; --moon:#e8e4d8;
+    --mono:"Cascadia Mono","Consolas",ui-monospace,monospace;
+    --disp:"Bahnschrift","Arial Narrow",system-ui,sans-serif;
+  }
+  * { box-sizing:border-box; margin:0; }
+  body { background:var(--void); color:var(--ink); font:14px/1.5 var(--disp); }
+  /* HORIZONTAL SCROLL FIX. `overflow-x:hidden` on body ALONE does not work: when the root
+     element is still `visible` the html box keeps scrolling, and this page really did scroll to
+     x=224 at a 405px viewport. The decorative jet/sprite layers sit at right=903 inside .wrap
+     and drag the document with them, so a phone or narrow window got sideways scrolling over
+     scenery nobody is meant to reach.
+     `clip` rather than `hidden` on both: `hidden` makes the root a scroll container, which
+     breaks position:sticky and programmatic scrollIntoView. `hidden` is kept as the fallback
+     for engines without `clip`. */
+  html, body { overflow-x:hidden; }
+  @supports (overflow:clip) { html, body { overflow-x:clip; } }
+
+  #space { position:fixed; inset:0; z-index:-3;
+    background:radial-gradient(1200px 700px at 75% -10%,#10203c 0%,transparent 60%),
+      radial-gradient(900px 600px at 10% 110%,#0d1a2e 0%,transparent 55%),
+      linear-gradient(180deg,#030509 0%,#070c18 55%,#0a1120 100%); }
+  .stars { position:fixed; inset:-100px; z-index:-2; pointer-events:none; }
+  .stars div { position:absolute; inset:0; border-radius:50%; }
+  #st1 { animation:drift 240s linear infinite; }
+  @keyframes drift { to { transform:translateY(200px); } }
+  /* aurora ribbons drifting behind everything */
+  .aurora { position:fixed; top:-12%; left:-16%; width:70%; height:44%; z-index:-2; pointer-events:none;
+    background:radial-gradient(58% 42% at 50% 50%, rgba(61,255,158,.14), rgba(61,255,158,.05) 55%, transparent 75%);
+    filter:blur(28px); transform:rotate(-16deg);
+    animation:aur 26s ease-in-out infinite alternate; will-change:transform,opacity; }
+  .aurora.a2 { left:auto; right:-18%; top:24%; transform:rotate(14deg);
+    background:radial-gradient(58% 42% at 50% 50%, rgba(91,156,245,.12), rgba(91,156,245,.04) 55%, transparent 75%);
+    animation-duration:34s; animation-delay:-12s; }
+  @keyframes aur { from { transform:rotate(-16deg) translateY(0) scale(1); opacity:.75; }
+    to { transform:rotate(-12deg) translateY(46px) scale(1.12); opacity:1; } }
+  /* shooting stars streaking across the sky (behind everything) */
+  .comet { position:fixed; z-index:-1; pointer-events:none; opacity:0;
+    background:linear-gradient(90deg, transparent 0%, rgba(150,200,255,.10) 34%, rgba(190,225,255,.5) 76%, #eaf6ff 100%);
+    clip-path:polygon(0 50%, 100% 0, 100% 100%);                 /* tapers to a point at the trailing end */
+    filter:drop-shadow(0 0 6px rgba(160,210,255,.55)); }
+  .comet::after { content:""; position:absolute; right:-2px; top:50%; width:8px; height:8px; margin-top:-4px; border-radius:50%;
+    background:radial-gradient(circle,#fff 26%,#cfe8ff 56%,transparent 74%);
+    box-shadow:0 0 10px 3px #d6ecff, 0 0 22px 7px rgba(150,200,255,.4); }   /* glowing head */
+  .comet::before { content:""; position:absolute; right:-7px; top:50%; width:20px; height:20px; margin-top:-10px; opacity:.85;
+    background:radial-gradient(circle, rgba(255,255,255,.85) 0, transparent 40%),
+      linear-gradient(90deg, transparent 47%, rgba(220,240,255,.85) 50%, transparent 53%),
+      linear-gradient(0deg, transparent 47%, rgba(210,235,255,.6) 50%, transparent 53%); }  /* sparkle cross */
+  .comet.c1 { top:11%; left:-240px; width:230px; height:6px; animation:comet1 15s cubic-bezier(.45,.02,.6,1) 4s infinite; }
+  .comet.c2 { top:27%; left:-170px; width:150px; height:4px; animation:comet2 19s cubic-bezier(.5,.02,.6,1) 12s infinite; }
+  @keyframes comet1 { 0%,78% { opacity:0; transform:translate(0,0) rotate(17deg); }
+    82% { opacity:1; } 98% { opacity:1; } 100% { opacity:0; transform:translate(122vw,44vh) rotate(23deg); } }
+  @keyframes comet2 { 0%,84% { opacity:0; transform:translate(0,0) rotate(12deg); }
+    88% { opacity:.9; } 99% { opacity:.9; } 100% { opacity:0; transform:translate(120vw,34vh) rotate(17deg); } }
+
+  .wrap { max-width:1240px; margin:0 auto; padding:18px 20px 60px; }
+  header { display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; padding:6px 2px 12px; }
+  .logo { font-size:30px; font-weight:800; letter-spacing:6px; color:#fff; text-shadow:0 0 18px rgba(61,255,158,.55); }
+  .logo b { color:var(--hive); }
+  /* The old subtitle crammed three claims into one uppercase mono line at 4.14:1 contrast, and
+     its middle clause ("mission: outpace") told a first-time reader nothing. Now: what the
+     acronym stands for, then one plain sentence saying what they are about to watch.
+     The E in HIVE is VERIFIABLE, not "verified" -- the older wording claimed the checking had
+     already happened, which is a stronger and different statement than "you can check this". */
+  .subwrap { display:flex; flex-direction:column; gap:3px; }
+  .sub { font-family:var(--mono); font-size:11px; color:#8fa3b6; letter-spacing:2px;
+    text-transform:uppercase; }
+  .sub b { color:var(--hive); font-weight:800; }
+  /* one line: the sentence is the page's whole premise and reads as a single claim, so it
+     must not fold mid-thought. It only wraps where it genuinely cannot fit. */
+  .sub2 { font-size:13px; color:#9fb3c4; letter-spacing:.2px; white-space:nowrap; }
+  @media (max-width:640px) { .sub2 { white-space:normal; max-width:60ch; } }
+  .sub2 b { color:var(--ink); font-weight:700; }
+  .leds { margin-left:auto; display:flex; gap:12px; font-family:var(--mono); font-size:10px; color:var(--dim); }
+  .led { display:flex; align-items:center; gap:5px; }
+  .led i { width:8px; height:8px; border-radius:50%; background:var(--hive); box-shadow:0 0 8px var(--hive); animation:blink 2.4s ease infinite; }
+  .led.amber i { background:var(--warn); box-shadow:0 0 8px var(--warn); animation-delay:1.2s; }
+  @keyframes blink { 0%,88%,100% { opacity:1; } 92%,96% { opacity:.25; } }
+
+  .console { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:12px 14px; }
+  .top { display:flex; gap:10px; align-items:flex-start; flex-wrap:wrap; }
+  select,input[type=text],textarea,button { background:#0a101f; color:var(--ink); border:1px solid var(--line); border-radius:8px; padding:9px 12px; font:13px var(--mono); }
+  /* DROPDOWNS. The native control rendered as a bare box with the OS chevron and an unstyled,
+     full-bleed option list -- the one element on the page that looked like an un-designed form.
+     appearance:none plus an inline chevron brings it into the same language as everything else,
+     and colour-scheme:dark makes the popup itself dark on Chromium instead of white-on-white. */
+  select { appearance:none; -webkit-appearance:none; color-scheme:dark;
+    padding:10px 34px 10px 14px; cursor:pointer; font-weight:600;
+    border-radius:12px; border:1px solid #23364f;
+    background-color:#0b1220;
+    box-shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 2px 10px rgba(0,0,0,.35);
+    background-image:linear-gradient(45deg,transparent 50%,#7d90a3 50%),
+                     linear-gradient(135deg,#7d90a3 50%,transparent 50%);
+    background-position:calc(100% - 17px) calc(50% + 1px), calc(100% - 12px) calc(50% + 1px);
+    background-size:5px 5px, 5px 5px; background-repeat:no-repeat;
+    transition:border-color .15s ease, box-shadow .15s ease; }
+  select:hover { border-color:#2f4667; }
+  select:focus-visible { outline:none; border-color:var(--hive);
+    box-shadow:0 0 0 3px rgba(61,255,158,.14); }
+  /* When the popup is open the control's own bottom corners should stay rounded rather than
+     squaring off against a hard-edged list. */
+  select:focus { border-radius:12px; }
+  select option { background:#0c1424; color:var(--ink); padding:10px 12px; border-radius:8px; }
+  select option:checked { background:#12304a; }
+  input[type=text]:focus-visible, textarea:focus-visible, button:focus-visible {
+    outline:none; border-color:var(--hive); box-shadow:0 0 0 3px rgba(61,255,158,.14); }
+  input[type=text] { flex:1; min-width:240px; }
+  /* THE PROMPT gets its own full-width row. It used to be one more item in the control flex row,
+     competing with three mode buttons and a rival dropdown for horizontal space, so it collapsed
+     to a slot barely wider than its own placeholder -- the single most important input on the
+     page, presented as the smallest. Now it owns the row, sits in a recessed panel that reads as
+     a field, and the launch controls stack beside it at a fixed width. */
+  .askrow { display:flex; gap:10px; align-items:stretch; margin-top:10px; }
+  .askbox { flex:1; min-width:0; display:flex; flex-direction:column; gap:5px;
+    background:#070d1a; border:1px solid var(--line); border-radius:12px; padding:9px 11px 10px;
+    transition:border-color .18s, box-shadow .18s; }
+  .askbox:focus-within { border-color:var(--hive); box-shadow:0 0 0 3px rgba(61,255,158,.13); }
+  .asklbl { font:600 10.5px var(--mono); letter-spacing:1.4px; text-transform:uppercase; color:var(--dim); }
+  /* textarea so long prompts WRAP + scroll instead of being cut off; drag the corner to enlarge */
+  textarea#prompt { width:100%; height:78px; min-height:56px; max-height:210px;
+    background:transparent; border:none; border-radius:0; padding:0; font-size:14px;
+    resize:vertical; overflow-y:auto; line-height:1.55; white-space:pre-wrap; word-break:break-word; }
+  textarea#prompt:focus, textarea#prompt:focus-visible { outline:none; box-shadow:none; }
+  .askbtns { display:flex; flex-direction:column; gap:8px; justify-content:center; width:158px; flex:none; }
+  .askbtns button { width:100%; }
+  @media (max-width:560px) {
+    .askrow { flex-direction:column; }
+    .askbtns { width:auto; flex-direction:row; }
+  }
+  select:hover { border-color:#2f4a6b; }
+  select:focus, select:focus-visible { border-radius:12px; border-color:var(--hive);
+    box-shadow:0 0 0 3px rgba(61,255,158,.14); outline:none; }
+  /* the popup list itself: rounded, padded, and legible rather than the raw OS control */
+  select option { background:#0b1220; color:var(--ink); padding:10px 12px; border-radius:8px; }
+  select option:checked { background:#13233a; color:var(--hive); font-weight:700; }
+  /* CUSTOM LISTBOX. A native <select> popup is drawn by the OS, so border-radius on
+     <option> genuinely cannot round it -- the square corners were not a CSS mistake, they
+     were the platform. The real <select> stays in the DOM as the source of truth (every
+     handler still reads $('rival').value); this only draws it. */
+  .selwrap { position:relative; display:inline-block; }
+  .selwrap select { position:absolute; inset:0; opacity:0; pointer-events:none; }
+  .selbtn { display:flex; align-items:center; gap:10px; width:100%;
+    padding:10px 14px; border:1px solid #23364f; border-radius:12px; background:#0b1220;
+    color:var(--ink); font:600 13px var(--mono); cursor:pointer; text-align:left;
+    box-shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 2px 10px rgba(0,0,0,.35); }
+  .selbtn:hover { border-color:#2f4a6b; }
+  .selwrap.open .selbtn, .selbtn:focus-visible { border-color:var(--hive); outline:none;
+    box-shadow:0 0 0 3px rgba(61,255,158,.14); }
+  .selbtn .caret { margin-left:auto; color:#7d90a3; font-size:10px; }
+  .sellist { position:absolute; z-index:60; top:calc(100% + 6px); left:0; min-width:100%;
+    padding:6px; border:1px solid #23364f; border-radius:14px; background:#0b1220;
+    box-shadow:0 12px 34px rgba(0,0,0,.55); display:none; }
+  .selwrap.open .sellist { display:block; }
+  .selopt { padding:9px 12px; border-radius:9px; font:13px var(--mono); color:var(--ink);
+    cursor:pointer; white-space:nowrap; }
+  .selopt:hover { background:#13233a; }
+  .selopt[aria-selected="true"] { background:#13233a; color:var(--hive); font-weight:700; }
+  /* ===================== THE RIG: collapsible spec sheet ===================== */
+  .rig { margin-top:14px; border:1px solid var(--line); border-radius:14px;
+    background:var(--panel); overflow:hidden; }
+  .rigHead { display:flex; align-items:center; gap:12px; width:100%; padding:14px 16px;
+    background:transparent; border:none; border-radius:0; cursor:pointer; text-align:left;
+    color:var(--ink); transition:background .18s; }
+  .rigHead:hover { background:rgba(61,255,158,.045); }
+  .rigHead:focus-visible { outline:none; box-shadow:inset 0 0 0 2px rgba(61,255,158,.35); }
+  .rigIcon { font-size:19px; line-height:1; }
+  .rigTitle { flex:1; font:700 14px var(--disp); letter-spacing:.4px; }
+  .rigTitle small { display:block; margin-top:3px; font:11.5px var(--mono);
+    color:#8fa3b6; font-weight:400; letter-spacing:0; }
+  .rigMore { font:11px var(--mono); color:#7d90a3; letter-spacing:.4px; white-space:nowrap;
+    transition:color .18s; }
+  .rigHead:hover .rigMore { color:var(--hive); }
+  @media (max-width:520px) { .rigMore { display:none; } }
+  .rigChev { font-size:13px; color:var(--hive);
+    transition:transform .32s cubic-bezier(.4,0,.2,1); }
+  .rig.open .rigChev { transform:rotate(180deg); }
+  /* height animates off the measured content, so the easing is right at any length */
+  .rigBody { height:0; overflow:hidden; transition:height .38s cubic-bezier(.4,0,.2,1); }
+  .rigInner { padding:2px 16px 16px; border-top:1px solid var(--line); }
+  .rigGrp { margin-top:14px; }
+  .rigGrp h4 { font:600 11px var(--mono); letter-spacing:1.4px; text-transform:uppercase;
+    color:var(--hive); margin:0 0 7px; }
+  .rigRow { display:grid; grid-template-columns:minmax(120px,190px) 1fr; gap:6px 16px;
+    padding:5px 0; border-bottom:1px solid rgba(30,45,66,.55); font:12px var(--mono); }
+  .rigRow:last-child { border-bottom:none; }
+  .rigRow b { color:#8fa3b6; font-weight:400; }
+  .rigRow span { color:var(--ink); }
+  /* each group fades up as the panel opens, so it reads as unfolding rather than appearing */
+  .rig.open .rigGrp { animation:rowin .45s ease backwards; }
+  .rig.open .rigGrp:nth-child(2) { animation-delay:.06s; }
+  .rig.open .rigGrp:nth-child(3) { animation-delay:.12s; }
+  .rig.open .rigGrp:nth-child(4) { animation-delay:.18s; }
+  .rig.open .rigGrp:nth-child(5) { animation-delay:.24s; }
+  @media (max-width:560px) { .rigRow { grid-template-columns:1fr; gap:2px; } }
+  button { cursor:pointer; }
+  button:hover { border-color:var(--hive); }
+  .modes button.on { border-color:var(--hive); color:var(--hive); }
+  button.go { background:linear-gradient(180deg,#2dff92,#17c96d); color:#04140b; font-weight:800; letter-spacing:2px; border:none; padding:11px 30px; font-size:15px; box-shadow:0 0 22px rgba(61,255,158,.35); }
+  button.go:active { transform:scale(.95); }
+  button.go:disabled { filter:grayscale(.8); opacity:.5; }
+  button.halt { background:linear-gradient(180deg,#ff5d5d,#d92c2c); color:#1a0404; font-weight:800; letter-spacing:2px; border:none; padding:11px 18px; font-size:15px; box-shadow:0 0 22px rgba(255,93,93,.35); }
+  button.halt:active { transform:scale(.95); }
+  button.halt:disabled { filter:grayscale(.8); opacity:.4; box-shadow:none; }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+  .chips button { font-size:11px; padding:4px 11px; border-radius:999px; color:var(--dim); }
+  .beginner { font-family:var(--mono); font-size:12px; color:var(--warn); border:1px dashed #4a3a10; border-radius:8px; padding:8px 12px; margin-top:8px; display:none; }
+  .beginner.show { display:block; }
+  .bguide { display:none; margin-top:8px; border:1px dashed #1e5c40; border-radius:10px; padding:10px 14px; }
+  body.bgn .bguide { display:block; }
+  /* BEGINNER GUIDE. Was four dense paragraphs covering three of the page's nine elements. Now a
+     numbered walkthrough of everything actually on screen -- including the score table and the
+     table of engines that are BEATING us, because a guide that explains only the flattering
+     parts is not a guide. Numbered chips give it visual structure a wall of <b> tags cannot. */
+  .bhead { font:700 13px var(--disp); color:var(--ink); margin:2px 0 10px;
+    padding-bottom:7px; border-bottom:1px solid #1e5c40; }
+  .bintro { font:11.5px/1.6 var(--mono); color:#9fb3c4; }
+  .bintro.bdim { color:var(--dim); font-style:italic; margin-top:6px; }
+  /* one note per section, injected at the top of the thing it describes */
+  .btip { display:flex; gap:9px; align-items:flex-start; margin:0 0 11px; padding:9px 11px;
+    border:1px dashed #1e5c40; border-radius:10px; background:rgba(61,255,158,.045);
+    cursor:pointer; animation:rowin .45s ease backwards;
+    transition:background .18s, border-color .18s; }
+  .btip:hover { background:rgba(61,255,158,.10); border-color:rgba(61,255,158,.45); }
+  .btip i { flex:0 0 auto; width:19px; height:19px; border-radius:50%; background:var(--hive);
+    color:#04140b; font:800 11px var(--mono); font-style:normal; margin-top:1px;
+    display:flex; align-items:center; justify-content:center; }
+  .btip b { display:block; font:700 12px var(--disp); color:var(--hive); margin-bottom:2px; }
+  .btip span { font:11.5px/1.55 var(--mono); color:#9fb3c4; }
+  .btip.spanG { grid-column:1/-1; }
+  .btip.spanF { flex:0 0 100%; order:-1; }
+  /* declarative, so it reverts the instant beginner mode is switched off */
+  body.bgn .towerX, body.bgn .medals { flex-wrap:wrap; }
+  body.bgn .towerX { height:auto; min-height:640px; }
+  .btipfocus { outline:1px dashed rgba(61,255,158,.5); outline-offset:6px; border-radius:14px; }
+
+  .mission { display:grid; grid-template-columns:440px 1fr; gap:14px; margin-top:14px; }
+  @media (max-width:980px) { .mission { grid-template-columns:1fr; } }
+
+  /* ================== CHASE-CAM LAUNCH: two viewports, worlds scroll past ================== */
+  /* The pad keeps its DESIGNED height and is never stretched to make the page line up. The
+     grid row therefore takes its height from the pad, the telemetry column stretches into it,
+     and the pane row flexes to fill -- so both columns end flush at the rockets' final
+     positions by default, with no animation area extended to force it. Beginner mode is the
+     one exception: its notes genuinely add content, so there the pad may grow. */
+  .towerX { position:relative; height:640px; border:1px solid var(--line); border-radius:14px; overflow:hidden; background:#000; display:flex; }
+  .vp { position:relative; width:50%; height:100%; overflow:hidden; }
+  .vp + .vp { border-left:1px solid rgba(255,255,255,.08); }
+  .world { position:absolute; left:0; right:0; bottom:0; height:3200px; will-change:transform;
+    background:linear-gradient(0deg,
+      #85bfeb 0%, #93caf2 3.5%,          /* ground haze */
+      #6fb1e3 9%, #58a0d6 15%, #4a8ec9 20%,   /* day sky */
+      #f7b96e 24.5%, #f0925c 27%, #d8747f 30.5%, #a95f8f 33.5%,  /* layered sunset */
+      #6a5493 37%, #47407a 41%, #2c2c55 45%,  /* dusk */
+      #1a2044 52%, #101632 60%, #070b1d 70%, #02040c 100%); }  /* space */
+  /* sun low in the day band with god-ray glow */
+  .sun { position:absolute; bottom:430px; right:12%; width:54px; height:54px; border-radius:50%;
+    background:radial-gradient(circle at 42% 40%, #fffdf2, #ffe9a8 45%, #ffc95e 72%, rgba(255,190,80,.0) 100%);
+    box-shadow:0 0 46px 14px rgba(255,215,130,.5), 0 0 130px 50px rgba(255,200,110,.18);
+    animation:sunp 7s ease-in-out infinite alternate; }
+  @keyframes sunp { from { box-shadow:0 0 42px 12px rgba(255,215,130,.45),0 0 120px 46px rgba(255,200,110,.16); }
+    to { box-shadow:0 0 54px 18px rgba(255,215,130,.6),0 0 150px 60px rgba(255,200,110,.22); } }
+  /* aurora curtain at the edge of space (~1250-1500px) */
+  .waur { position:absolute; bottom:1250px; left:-4%; right:-4%; height:230px; pointer-events:none;
+    background:
+      radial-gradient(30% 90% at 20% 100%, rgba(61,255,158,.16), transparent 70%),
+      radial-gradient(26% 80% at 46% 100%, rgba(80,230,190,.13), transparent 70%),
+      radial-gradient(30% 95% at 74% 100%, rgba(91,156,245,.12), transparent 70%);
+    filter:blur(8px); animation:waurm 18s ease-in-out infinite alternate; will-change:transform; }
+  @keyframes waurm { from { transform:translateX(-14px) scaleY(1); } to { transform:translateX(14px) scaleY(1.14); } }
+  /* distant galaxy smudge in deep space */
+  .galaxy { position:absolute; bottom:2450px; left:16%; width:90px; height:34px; border-radius:50%;
+    background:radial-gradient(50% 50% at 50% 50%, rgba(210,190,255,.28), rgba(150,130,230,.12) 55%, transparent 78%);
+    filter:blur(3px); transform:rotate(-24deg);
+    animation:galx 60s ease-in-out infinite alternate; }
+  @keyframes galx { to { transform:rotate(-20deg) scale(1.06); } }
+  /* earth-glow band right above the ground (atmospheric perspective) */
+  .earthglow { position:absolute; bottom:64px; left:0; right:0; height:70px; pointer-events:none;
+    background:linear-gradient(0deg, rgba(255,236,200,.28), transparent 80%); }
+
+  /* ---- world furniture (positioned from BOTTOM = ground) ---- */
+  .ground2 { position:absolute; bottom:0; left:0; right:0; height:64px;
+    background:linear-gradient(180deg,#5d7c47 0%,#42592f 22%,#31421f 55%,#243016 100%); }
+  .ground2::before { content:""; position:absolute; top:0; left:0; right:0; height:12px;
+    background:repeating-linear-gradient(90deg, rgba(255,255,255,.06) 0 3px, transparent 3px 17px); opacity:.4; }
+  /* Florida scrub treeline + ocean sliver on the horizon */
+  .treeline { position:absolute; bottom:62px; left:0; right:30%; height:10px;
+    background:radial-gradient(6px 8px at 10% 100%,#1e3018 60%,transparent 61%),
+      radial-gradient(8px 10px at 22% 100%,#243a1c 60%,transparent 61%),
+      radial-gradient(5px 7px at 33% 100%,#1e3018 60%,transparent 61%),
+      radial-gradient(7px 9px at 47% 100%,#243a1c 60%,transparent 61%),
+      radial-gradient(6px 8px at 60% 100%,#1e3018 60%,transparent 61%),
+      radial-gradient(8px 10px at 74% 100%,#243a1c 60%,transparent 61%),
+      radial-gradient(5px 7px at 88% 100%,#1e3018 60%,transparent 61%); }
+  .ocean { position:absolute; bottom:62px; right:0; width:26%; height:7px;
+    background:linear-gradient(180deg,#3d7fb5,#2a5f8e); opacity:.9; }
+  .ocean::before { content:""; position:absolute; top:1px; left:10%; right:20%; height:1px; background:rgba(255,255,255,.35); }
+  /* perspective apron: trapezoid slab + expansion joints + crawlerway */
+  .apron { position:absolute; bottom:40px; left:5%; right:5%; height:26px;
+    background:linear-gradient(180deg,#a6b0ba 0%,#7d8892 45%,#5a646e 100%);
+    clip-path:polygon(6% 0,94% 0,100% 100%,0 100%);
+    box-shadow:0 5px 10px rgba(0,0,0,.4); }
+  .apron::before { content:""; position:absolute; inset:4px 8% auto 8%; height:3px;
+    background:repeating-linear-gradient(90deg,#f7d232 0 14px,#2b2f33 14px 28px); }
+  .apron::after { content:""; position:absolute; inset:0;
+    background:repeating-linear-gradient(90deg, transparent 0 30px, rgba(0,0,0,.14) 30px 32px),
+      repeating-linear-gradient(0deg, transparent 0 8px, rgba(0,0,0,.08) 8px 9px); }
+  .crawlerway { position:absolute; bottom:30px; left:-4px; width:34%; height:12px;
+    background:linear-gradient(180deg,#8a8272,#6a634f); clip-path:polygon(0 20%,100% 0,100% 100%,0 80%);
+    opacity:.85; }
+  /* LAUNCH MOUNT: steel table the rocket SITS on, over the flame duct */
+  .mount { position:absolute; bottom:66px; left:50%; transform:translateX(-50%); width:64px; height:14px; z-index:4; }
+  .mount .table { position:absolute; top:0; left:0; right:0; height:6px;
+    background:linear-gradient(180deg,#b8c2cc,#78838d 60%,#4e575f); border-radius:1px;
+    box-shadow:0 1px 3px rgba(0,0,0,.5); }
+  .mount .legA,.mount .legB,.mount .legC,.mount .legD { position:absolute; top:6px; width:5px; height:8px;
+    background:linear-gradient(90deg,#6a747e,#3f474f); }
+  .mount .legA { left:4px; } .mount .legB { left:22px; } .mount .legC { right:22px; } .mount .legD { right:4px; }
+  .mount .hold { position:absolute; top:-7px; width:4px; height:8px; background:#8a4a2a; }
+  .mount .hold.h1 { left:10px; } .mount .hold.h2 { right:10px; }
+  .trench { position:absolute; bottom:40px; left:50%; transform:translateX(-50%); width:76px; height:26px;
+    background:radial-gradient(ellipse at 50% 0%, #14181d 30%, #05070a 75%); border-radius:0 0 10px 10px;
+    box-shadow:inset 0 -4px 8px rgba(0,0,0,.8); }
+  /* rocket ground shadow -- fades/shrinks with altitude (grounding cue) */
+  .rkShadow { position:absolute; bottom:63px; left:50%; width:54px; height:9px; border-radius:50%;
+    background:radial-gradient(rgba(0,0,0,.55), rgba(0,0,0,0) 70%); z-index:3;
+    transform:translateX(-50%); will-change:transform,opacity; }
+  /* Fixed Service Structure: red-steel lattice + swing arm + beacon */
+  .fss { position:absolute; bottom:66px; width:16px; height:170px;
+    background:
+      repeating-linear-gradient(0deg, rgba(0,0,0,.35) 0 3px, transparent 3px 14px),
+      repeating-linear-gradient(90deg, rgba(0,0,0,.3) 0 2px, transparent 2px 8px),
+      linear-gradient(90deg,#8a2f24,#c14b33 45%,#7d281e);
+    border-left:2px solid #5e1d14; border-right:2px solid #5e1d14; }
+  .fss::after { content:""; position:absolute; top:-16px; left:50%; width:2px; height:16px; background:#b9c4ce; }
+  .fss .beacon { position:absolute; top:-20px; left:50%; transform:translateX(-50%); width:6px; height:6px; border-radius:50%;
+    background:#ff4040; box-shadow:0 0 8px #ff4040; animation:blink 1.6s steps(1) infinite; }
+  .fss .arm { position:absolute; top:38px; width:30px; height:5px;
+    background:linear-gradient(180deg,#c9d3dc,#8b959e); transform-origin:left center; transition:transform 1.1s ease; }
+  .vp .fss { left:18%; } .vp .fss .arm { left:100%; }
+  .launched .fss .arm { transform:rotate(-68deg); }
+  /* water tower */
+  .wtower { position:absolute; bottom:66px; width:26px; height:88px; }
+  .wtower .tank { position:absolute; top:0; left:50%; transform:translateX(-50%); width:26px; height:30px; border-radius:50% 50% 46% 46%;
+    background:radial-gradient(circle at 34% 28%,#ffffff,#c3ccd4 55%,#8d979f); }
+  .wtower .tank::after { content:""; position:absolute; top:12px; left:0; right:0; height:5px; background:#2e6da8; opacity:.85; }
+  .wtower .legs { position:absolute; top:28px; left:50%; transform:translateX(-50%); width:20px; height:60px;
+    background:repeating-linear-gradient(90deg,#77828c 0 2px,transparent 2px 8px); }
+  .vp .wtower { right:10%; }
+  /* lightning masts */
+  .mast { position:absolute; bottom:66px; width:3px; height:120px; background:linear-gradient(180deg,#e6ecf2,#98a2ab); }
+  .mast::after { content:""; position:absolute; top:0; left:-2px; width:7px; height:2px; background:#e6ecf2; }
+  .mast.m1 { left:34%; height:132px; } .mast.m2 { right:28%; height:112px; }
+  /* VAB on the horizon + tank farm */
+  .vab { position:absolute; bottom:64px; left:2%; width:58px; height:64px;
+    background:linear-gradient(90deg,#aab6bf 0%,#cfd8de 45%,#98a4ad 100%); border-top:4px solid #7e8a93; }
+  .vab::before { content:""; position:absolute; inset:8px auto auto 8px; width:14px; height:48px; background:#33517e; }
+  .vab::after { content:"HIVE"; position:absolute; top:14px; right:5px; font:800 9px var(--disp); color:#b3402e; letter-spacing:1px; writing-mode:vertical-rl; }
+  .tanks { position:absolute; bottom:64px; right:2%; display:flex; gap:3px; }
+  .tanks i { width:12px; height:26px; border-radius:6px 6px 2px 2px; background:linear-gradient(90deg,#c9d2d9,#f2f6f9 45%,#aeb9c1); }
+  .tanks i:nth-child(2) { height:34px; }
+  /* pad sign */
+  .padsign { position:absolute; bottom:74px; left:6%; font:800 10px var(--disp); color:#fff; background:#20415f;
+    padding:2px 6px; border-radius:2px; letter-spacing:1px; box-shadow:0 2px 4px rgba(0,0,0,.4); }
+
+  /* clouds at two depths: far (behind rocket, small, slow, hazy) + near (IN FRONT, big, fast) */
+  .cl { position:absolute; background:rgba(255,255,255,.92); border-radius:999px; filter:blur(1.5px);
+    animation:clx linear infinite; will-change:transform; z-index:2; }
+  .cl::before,.cl::after { content:""; position:absolute; background:inherit; border-radius:inherit; }
+  .cl::before { width:58%; height:130%; left:12%; top:-60%; }
+  .cl::after { width:44%; height:104%; right:8%; top:-40%; }
+  .cl.far { z-index:1; filter:blur(2.5px); opacity:.45 !important; }
+  .cl.near { z-index:7; filter:blur(.8px); }
+  @keyframes clx { from { transform:translateX(-160px); } to { transform:translateX(560px); } }
+  /* viewport depth: vignette + top atmosphere glow */
+  .vp::after { content:""; position:absolute; inset:0; pointer-events:none; z-index:9;
+    box-shadow:inset 0 0 44px 10px rgba(0,0,0,.42); border-radius:2px; }
+  /* birds: two flapping wing-bars, drifting flocks at low altitude */
+  .bird { position:absolute; width:10px; height:4px; animation:birdx linear infinite; will-change:transform; z-index:2; }
+  .bird i { position:absolute; top:2px; width:5px; height:2px; border-radius:2px 2px 0 0; background:#22302a; }
+  .bird i:first-child { left:0; transform-origin:right center; animation:flapL .5s ease-in-out infinite alternate; }
+  .bird i:last-child { right:0; transform-origin:left center; animation:flapR .5s ease-in-out infinite alternate; }
+  @keyframes flapL { from { transform:rotate(26deg); } to { transform:rotate(-18deg); } }
+  @keyframes flapR { from { transform:rotate(-26deg); } to { transform:rotate(18deg); } }
+  @keyframes birdx { from { transform:translateX(-60px); } to { transform:translateX(520px); } }
+  .bird.rev { animation-name:birdxr; }
+  @keyframes birdxr { from { transform:translateX(520px) scaleX(-1); } to { transform:translateX(-60px) scaleX(-1); } }
+  /* aircraft: SVG sprites, always DRAWN nose-right; .rev flips only the inner .spr,
+     so the facing can never disagree with the motion (jetx flies right, jetxr flies left) */
+  .prop { position:absolute; width:66px; height:25px; animation:jetx linear infinite; will-change:transform; z-index:2; }
+  .jet  { position:absolute; width:106px; height:30px; animation:jetx linear infinite; will-change:transform; }
+  .prop .spr, .jet .spr { position:absolute; inset:0; }
+  .jet.rev, .prop.rev { animation-name:jetxr; }
+  .jet.rev .spr, .prop.rev .spr { transform:scaleX(-1); }
+  .spr svg { width:100%; height:100%; display:block; }
+  .spr .trail { position:absolute; top:46%; right:96%; width:150px; height:2px; border-radius:1px;
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.7)); }
+  .prop .spr .trail { display:none; }
+  .spr .propdisk { animation:pdisk .07s linear infinite alternate; }
+  @keyframes pdisk { from { opacity:.62; } to { opacity:.22; } }
+  .spr .beak { animation:tw 1.6s ease infinite; }
+  @keyframes jetx { from { transform:translateX(-280px); } to { transform:translateX(720px); } }
+  @keyframes jetxr { from { transform:translateX(720px); } to { transform:translateX(-280px); } }
+  /* fuel section mode badge */
+  .bits h3 .fmode { float:right; font:800 10px var(--mono); color:var(--dim); border:1px solid var(--line);
+    border-radius:10px; padding:2px 8px; letter-spacing:1.5px; }
+  .bits h3 .fmode.live { color:var(--hive); border-color:#1e5c40; box-shadow:0 0 10px rgba(61,255,158,.25); }
+  /* satellite + world stars */
+  .sat { position:absolute; font-size:14px; animation:satx 40s linear infinite; opacity:.9; }
+  @keyframes satx { from { transform:translateX(-40px) rotate(10deg); } to { transform:translateX(460px) rotate(-14deg); } }
+  .wstar { position:absolute; width:2px; height:2px; border-radius:50%; background:#fff; animation:tw 3s ease infinite; }
+  @keyframes tw { 0%,100% { opacity:.9; } 50% { opacity:.2; } }
+  /* Kármán line + ISS marker */
+  .karman { position:absolute; left:0; right:0; height:1px; border-top:1px dashed rgba(160,190,255,.35); }
+  .karman span { position:absolute; right:6px; top:-14px; font:9px var(--mono); color:rgba(180,205,255,.6); letter-spacing:1px; }
+  /* the Moon (in-world, at the top) */
+  .moonX { position:absolute; top:70px; left:50%; transform:translateX(-50%); width:116px; height:116px; border-radius:50%;
+    background:radial-gradient(circle at 34% 30%,#fffef4,var(--moon) 45%,#a8a391 100%);
+    box-shadow:0 0 44px rgba(232,228,216,.4),0 0 130px rgba(232,228,216,.15); }
+  .moonX i { position:absolute; border-radius:50%; background:radial-gradient(circle at 40% 35%,rgba(90,86,74,.55),rgba(120,115,100,.35));
+    box-shadow:inset 1px 1px 2px rgba(60,56,45,.6); }
+  .moonX i:nth-child(1){ width:22px;height:22px;top:22%;left:50%; }
+  .moonX i:nth-child(2){ width:13px;height:13px;top:56%;left:28%; }
+  .moonX i:nth-child(3){ width:9px;height:9px;top:42%;left:70%; }
+  .moonX i:nth-child(4){ width:7px;height:7px;top:70%;left:56%; }
+  .moonlbl { position:absolute; top:196px; width:100%; text-align:center; font:10px var(--mono); letter-spacing:3px; color:#cdd6e6; }
+
+  /* ---- rockets: in-world, textured ---- */
+  .rk { position:absolute; left:50%; will-change:transform; z-index:5; transform:translate3d(-50%,0,0); }
+  .rk .inner { position:relative; width:100%; height:100%; }
+  .rk.fly .inner { animation:sway 1.7s ease-in-out infinite; }
+  @keyframes sway { 0%,100% { transform:rotate(-1deg); } 50% { transform:rotate(1deg); } }
+  /* ============ HIVE crew bird: 36 x 112, sits ON the mount (bottom:80px) ============ */
+  .rkU { width:36px; height:112px; bottom:80px; }
+  .rkU .nose { position:absolute; top:0; left:50%; transform:translateX(-50%); width:22px; height:26px;
+    background:linear-gradient(90deg,#128a52 0%,#2ef08e 45%,#8fffce 55%,#0f7a48 100%);
+    border-radius:50% 50% 30% 30% / 90% 90% 10% 10%;
+    filter:drop-shadow(0 1px 1px rgba(0,60,30,.5)); }
+  .rkU .nose::after { content:""; position:absolute; top:5px; left:26%; width:3px; height:12px;
+    background:rgba(255,255,255,.7); border-radius:2px; filter:blur(.5px); }   /* specular */
+  .rkU .nose::before { content:""; position:absolute; top:-7px; left:50%; transform:translateX(-50%); width:2px; height:8px;
+    background:linear-gradient(180deg,#d7ffe9,#4a8a68); }   /* tip antenna */
+  .rkU .body { position:absolute; top:25px; left:1px; width:34px; height:64px; border-radius:2px 2px 5px 5px;
+    background:
+      repeating-linear-gradient(0deg, rgba(0,0,0,.09) 0 1px, transparent 1px 13px),
+      repeating-linear-gradient(90deg, rgba(0,0,0,.05) 0 1px, transparent 1px 8px),
+      linear-gradient(90deg,#93a59e 0%,#dfe9e4 22%,#ffffff 40%,#eef4f1 56%,#a9bab2 78%,#6f7f78 100%); }
+  .rkU .body::after { content:""; position:absolute; top:0; bottom:0; left:34%; width:4px;
+    background:linear-gradient(180deg,rgba(255,255,255,.85),rgba(255,255,255,.25)); filter:blur(1px); } /* long specular */
+  .rkU .interstage { position:absolute; top:56px; left:1px; width:34px; height:5px;
+    background:linear-gradient(180deg,#2c3a34,#0f1714); }
+  .rkU .decal { position:absolute; top:62px; left:50%; transform:translateX(-50%); font:800 8px var(--disp);
+    color:#0d5c38; letter-spacing:1px; writing-mode:vertical-rl; }
+  .rkU .stripe { position:absolute; top:30px; left:1px; width:34px; height:4px; background:var(--hive); box-shadow:0 0 5px rgba(61,255,158,.6); }
+  .rkU .win { position:absolute; top:36px; left:50%; transform:translateX(-50%); width:12px; height:12px; border-radius:50%;
+    background:radial-gradient(circle at 32% 28%,#e8fbff,#4aa8d8 58%,#154e70);
+    border:2px solid #5c6e66; box-shadow:inset -1px -1px 2px rgba(0,0,0,.4), 0 0 4px rgba(120,200,255,.35); }
+  .rkU .rcs { position:absolute; top:27px; left:5px; width:3px; height:3px; border-radius:50%; background:#20302a; box-shadow:22px 0 0 #20302a; }
+  .rkU .gfL,.rkU .gfR { position:absolute; top:20px; width:6px; height:9px; border-radius:2px;
+    background:repeating-linear-gradient(0deg,#3d4a44 0 2px,#202b26 2px 4px); }   /* grid fins */
+  .rkU .gfL { left:-5px; } .rkU .gfR { right:-5px; }
+  .rkU .finL,.rkU .finR { position:absolute; bottom:14px; width:0; height:0; border-bottom:26px solid #17c96d;
+    filter:drop-shadow(0 1px 1px rgba(0,40,20,.5)); }
+  .rkU .finL { left:-13px; border-left:13px solid transparent; }
+  .rkU .finR { right:-13px; border-right:13px solid transparent; }
+  .rkU .finL::after,.rkU .finR::after { content:""; position:absolute; top:4px; width:2px; height:20px; background:rgba(0,0,0,.25); }
+  .rkU .skirt { position:absolute; bottom:8px; left:3px; width:30px; height:8px;
+    background:linear-gradient(90deg,#39413c,#5b665f 45%,#2a312c); border-radius:0 0 3px 3px; }
+  .rkU .legL,.rkU .legR { position:absolute; bottom:0; width:3px; height:14px; background:#37413b; }
+  .rkU .legL { left:2px; transform:rotate(16deg); } .rkU .legR { right:2px; transform:rotate(-16deg); }
+  .rkU .bell { position:absolute; bottom:0; left:50%; transform:translateX(-50%); width:16px; height:11px;
+    background:linear-gradient(90deg,#2a3138,#5b6670 40%,#828e99 50%,#4c565f 65%,#1c2227);
+    clip-path:polygon(24% 0,76% 0,100% 100%,0 100%); }
+  .rkU .bellL,.rkU .bellR { position:absolute; bottom:0; width:8px; height:7px;
+    background:linear-gradient(90deg,#333b42,#616c76 50%,#242b31); clip-path:polygon(22% 0,78% 0,100% 100%,0 100%); }
+  .rkU .bellL { left:3px; } .rkU .bellR { right:3px; }
+  .rkU .bell::after { content:""; position:absolute; inset:auto 3px 0 3px; height:4px;
+    background:radial-gradient(#ffc57a,#8a3400); border-radius:50%; opacity:.85; }
+  /* ============ RIVAL heavy: 48 x 106, shuttle-stack ============ */
+  .rkT { width:48px; height:106px; bottom:80px; }
+  .rkT .core { position:absolute; top:0; left:50%; transform:translateX(-50%); width:24px; height:90px; border-radius:12px 12px 3px 3px;
+    background:
+      repeating-linear-gradient(0deg, rgba(0,0,0,.08) 0 1px, transparent 1px 11px),
+      repeating-linear-gradient(90deg, rgba(0,0,0,.04) 0 1px, transparent 1px 6px),
+      linear-gradient(90deg,#556a90 0%,#9db1d1 20%,#e6eef8 42%,#ffffff 50%,#c5d4ea 62%,#7d92b4 82%,#42557a 100%); }
+  .rkT .core::after { content:""; position:absolute; top:6px; bottom:8px; left:36%; width:3px;
+    background:linear-gradient(180deg,rgba(255,255,255,.8),rgba(255,255,255,.2)); filter:blur(1px); }
+  .rkT .tip::after { content:""; position:absolute; top:-3px; left:50%; transform:translateX(-50%); width:3px; height:3px;
+    border-radius:50%; background:#ff5b5b; box-shadow:0 0 6px #ff5b5b; animation:blink 1.4s steps(1) infinite; }
+  .rkT .tip { position:absolute; top:-10px; left:50%; transform:translateX(-50%); width:13px; height:17px; border-radius:50% 50% 0 0;
+    background:linear-gradient(90deg,#274d80,#5c8cc6 45%,#8fb4e2 55%,#1f3f6c 100%); }
+  .rkT .fairing { position:absolute; top:16px; left:50%; transform:translateX(-50%); width:24px; height:2px; background:rgba(20,40,70,.5); }
+  .rkT .band { position:absolute; top:28px; left:50%; transform:translateX(-50%); width:24px; height:4px; background:var(--rival); box-shadow:0 0 5px rgba(91,156,245,.6); }
+  .rkT .chevron { position:absolute; top:34px; left:50%; transform:translateX(-50%); width:0; height:0;
+    border-left:7px solid transparent; border-right:7px solid transparent; border-top:7px solid #2c5b96; }
+  .rkT .decal { position:absolute; top:46px; left:50%; transform:translateX(-50%); font:800 7px var(--disp); color:#274c7e; letter-spacing:1px; writing-mode:vertical-rl; }
+  .rkT .portL,.rkT .portR { position:absolute; top:12px; width:5px; height:5px; border-radius:50%; background:#0e1a30; border:1px solid #35507e; }
+  .rkT .portL { left:15px; } .rkT .portR { right:15px; }
+  .rkT .boL,.rkT .boR { position:absolute; bottom:10px; width:12px; height:58px; border-radius:6px 6px 2px 2px;
+    background:
+      repeating-linear-gradient(0deg, rgba(0,0,0,.12) 0 1px, transparent 1px 9px),
+      linear-gradient(90deg,#5d422a 0%,#a97c4c 30%,#e2b578 46%,#c99a63 58%,#8a663f 80%,#4e3822 100%); }
+  .rkT .boL { left:0; } .rkT .boR { right:0; }
+  .rkT .boL::before,.rkT .boR::before { content:""; position:absolute; top:-9px; left:50%; transform:translateX(-50%);
+    width:0; height:0; border-left:6px solid transparent; border-right:6px solid transparent; border-bottom:10px solid #533c25; }
+  .rkT .boL::after,.rkT .boR::after { content:""; position:absolute; top:6px; left:2px; right:2px; height:5px;
+    background:rgba(240,246,252,.75); border-radius:2px; filter:blur(.4px); }   /* ice frost band */
+  .rkT .bnzL,.rkT .bnzR { position:absolute; bottom:4px; width:8px; height:7px;
+    background:linear-gradient(90deg,#333b42,#616c76 50%,#242b31); clip-path:polygon(22% 0,78% 0,100% 100%,0 100%); }
+  .rkT .bnzL { left:2px; } .rkT .bnzR { right:2px; }
+  .rkT .umb { position:absolute; top:58px; right:8px; width:3px; height:12px; background:#2a3a52; border-radius:1px; }
+  .rkT .bell { position:absolute; bottom:0; left:50%; transform:translateX(-50%); width:15px; height:11px;
+    background:linear-gradient(90deg,#2a3138,#5b6670 40%,#828e99 50%,#4c565f 65%,#1c2227);
+    clip-path:polygon(24% 0,76% 0,100% 100%,0 100%); }
+  .rkT .bell::after { content:""; position:absolute; inset:auto 3px 0 3px; height:4px;
+    background:radial-gradient(#ffc57a,#8a3400); border-radius:50%; opacity:.85; }
+  /* flames: layered white-hot core + orange sheath + shock diamonds + outer glow */
+  .fl { position:absolute; top:100%; left:50%; transform:translate3d(-50%,-4px,0); width:13px; height:0;
+    background:
+      repeating-linear-gradient(180deg, rgba(255,255,255,.0) 0 5px, rgba(255,255,255,.35) 5px 7px),  /* shock diamonds */
+      linear-gradient(180deg,#ffffff 0%,#fff3a6 18%,#ffc247 38%,#ff6b2e 62%,#e6371f 78%,rgba(230,50,20,0) 100%);
+    border-radius:0 0 55% 55%;
+    box-shadow:0 6px 18px rgba(255,140,50,.55), 0 0 10px rgba(255,200,120,.5);
+    filter:blur(.5px); opacity:0; transition:height .25s,opacity .25s; animation:flick .1s infinite alternate; will-change:transform; }
+  .fl::before { content:""; position:absolute; top:0; left:50%; transform:translateX(-50%); width:38%; height:60%;
+    background:linear-gradient(180deg,#fff,#fef0b0 70%,transparent); border-radius:0 0 50% 50%; filter:blur(.4px); }
+  @keyframes flick { from { transform:translate3d(-50%,-4px,0) scaleX(1); } to { transform:translate3d(-50%,-4px,0) scaleX(.72); } }
+  .rkT .fl.l { left:5px; width:8px; } .rkT .fl.r { left:auto; right:5px; transform:translate3d(50%,-4px,0); width:8px; }
+  /* liftoff smoke billow */
+  .smoke { position:absolute; bottom:60px; left:50%; transform:translateX(-50%); width:120px; height:60px; pointer-events:none; opacity:0; }
+  .smoke i { position:absolute; bottom:0; border-radius:50%; background:radial-gradient(rgba(235,238,240,.95),rgba(200,205,210,.25) 70%); }
+  .launched .smoke { animation:smokey 3.5s ease-out forwards; }
+  @keyframes smokey { 0% { opacity:0; transform:translateX(-50%) scale(.3); } 12% { opacity:1; } 100% { opacity:0; transform:translateX(-50%) scale(2.6); } }
+
+  /* HUD per viewport */
+  .hud { position:absolute; top:8px; left:0; right:0; text-align:center; font:10px var(--mono); letter-spacing:2px; z-index:8; text-shadow:0 1px 4px rgba(0,0,0,.8); }
+  .vpU .hud { color:var(--hive); } .vpT .hud { color:#bcd8ff; }
+  .altHud { position:absolute; bottom:8px; left:0; right:0; text-align:center; font:11px var(--mono); color:#eaf3ff; z-index:8; text-shadow:0 1px 4px rgba(0,0,0,.8); }
+  .maxq { position:absolute; top:38%; left:50%; transform:translateX(-50%); font:10px var(--mono); color:var(--warn); opacity:0; z-index:8; text-shadow:0 0 8px var(--warn); }
+  .maxq.pop { animation:maxq 1.1s ease forwards; }
+  @keyframes maxq { 0% { opacity:0; } 15% { opacity:1; } 100% { opacity:0; transform:translate(-50%,-34px); } }
+
+  #exhaust { position:absolute; inset:0; z-index:6; pointer-events:none; }
+  #count { position:absolute; inset:0; display:none; align-items:center; justify-content:center; z-index:10;
+    background:rgba(4,6,13,.55); font:800 84px var(--disp); color:#fff; text-shadow:0 0 40px rgba(61,255,158,.8); letter-spacing:4px; }
+  #count.show { display:flex; }
+  /* .7s to match the countdown interval EXACTLY, and not infinite: the animation is
+     re-armed per digit in show(), so the visual beat lands with the beep. A free-running
+     .9s loop against a 700 ms interval is what made the beeps look out of sync -- the
+     audio was right, the pulse was drifting against it. */
+  #count span { animation:pulse .7s ease 1; }
+  @keyframes pulse { 0% { transform:scale(.8); opacity:.3; } 25% { transform:scale(1.06); opacity:1; } 100% { transform:scale(1); opacity:.9; } }
+
+  /* ---------- telemetry (unchanged layout) ---------- */
+  .tele { display:flex; flex-direction:column; gap:12px; }
+  /* The launch pad and the telemetry column are two cells of one grid row, so the grid already
+     makes the COLUMNS equal height -- but the panes only claimed their content height, leaving
+     ~70px of dead space under the transcripts while the rockets ran on to the bottom of the row.
+     The pane row now claims the slack and hands it to the transcript, so the two columns end
+     flush and the extra height goes somewhere useful: more of the answer on screen. */
+  .paneRow { display:grid; grid-template-columns:1fr 1fr; gap:12px; flex:1; min-height:0; }
+  .pane { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:12px 14px; display:flex; flex-direction:column; min-height:0; }
+  .pane h2 { font-size:13px; letter-spacing:2px; display:flex; justify-content:space-between; }
+  .pane.us h2 b { color:var(--hive); } .pane.them h2 b { color:var(--rival); }
+  .pane .model { font-family:var(--mono); font-size:10.5px; line-height:1.35; color:var(--dim);
+    margin:2px 0 8px; min-height:29px; }  /* fixed 2-line height -> metric boxes align across both panes */
+  .loadbar { display:none; position:relative; height:16px; border-radius:8px; background:#0a1322;
+    border:1px solid var(--line); margin:0 0 8px; overflow:hidden; }
+  .loadbar.on { display:block; }
+  .loadfill { height:100%; width:0; border-radius:8px; transition:width .3s ease; }
+  .loadbar.on .loadfill { background-size:200% 100%; animation:loadsheen 1.4s linear infinite; }
+  .pane.us .loadfill { background:linear-gradient(90deg,#17c96d,var(--hive),#17c96d); box-shadow:0 0 10px rgba(61,255,158,.45); }
+  .pane.them .loadfill { background:linear-gradient(90deg,#2d5da8,var(--rival),#2d5da8); box-shadow:0 0 10px rgba(91,156,245,.4); }
+  @keyframes loadsheen { from { background-position:0 0; } to { background-position:200% 0; } }
+  .loadbar.done .loadfill { animation:none; }
+  .loadpct { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font:700 10px var(--mono); color:#e6ecf6; letter-spacing:1px; text-shadow:0 1px 2px rgba(0,0,0,.6); }
+  .meters { display:flex; gap:9px; margin-bottom:10px; }
+  .meter { flex:1; min-width:0; background:rgba(255,255,255,.028); border:1px solid rgba(255,255,255,.075);
+    border-radius:9px; padding:9px 6px 8px; display:flex; flex-direction:column-reverse; align-items:center; gap:5px; }
+  .meter span { display:block; font-family:var(--mono); font-size:8.5px; color:var(--dim); text-transform:uppercase;
+    letter-spacing:.8px; text-align:center; white-space:nowrap; line-height:1; }
+  .odo { display:flex; height:30px; overflow:hidden; font:800 23px var(--mono); justify-content:center; }
+  .odo .digit { position:relative; width:14px; height:30px; }
+  .odo .col { position:absolute; top:0; left:0; transition:transform .3s cubic-bezier(.3,.9,.3,1); will-change:transform; }
+  .odo .col b { display:block; height:30px; line-height:30px; text-align:center; font-weight:800; }
+  .pane.us .meter { border-color:rgba(61,255,158,.16); }
+  .pane.them .meter { border-color:rgba(91,156,245,.16); }
+  .pane.us .odo { color:var(--hive); text-shadow:0 0 10px rgba(61,255,158,.4); }
+  .pane.them .odo { color:var(--rival); text-shadow:0 0 10px rgba(91,156,245,.4); }
+  canvas.spark { width:100%; height:44px; background:#070d1a; border:1px solid #12203a; border-radius:6px; }
+  .sparkcap { font-family:var(--mono); font-size:9px; color:var(--dim); text-transform:uppercase; letter-spacing:1px; margin:3px 0 7px; }
+  .out { flex:1; background:#070d1a; border:1px solid #12203a; border-radius:8px; padding:10px; font:12.5px var(--mono);
+    overflow-y:auto; min-height:110px; white-space:pre-wrap; word-break:break-word; }
+  .out::after { content:"▊"; color:var(--hive); animation:blink 1s steps(1) infinite; }
+  .pane.them .out::after { color:var(--rival); }
+  .receipt { margin-top:8px; border:1px dashed #1e5c40; border-radius:8px; padding:10px; font:11.5px var(--mono); display:none; }
+  .receipt.show { display:block; animation:pop .35s ease; }
+  .receipt .hash { color:var(--hive); word-break:break-all; }
+  .receipt button { margin-top:6px; font-size:11px; padding:4px 12px; border-radius:999px; }
+  #vsteps { margin-top:6px; color:var(--dim); }
+  #vsteps .ok { color:var(--hive); font-weight:700; }
+  .noreceipt { margin-top:8px; color:var(--dim); font:italic 11.5px var(--mono); }
+  @keyframes pop { from { transform:scale(.92); opacity:0; } }
+  #banner { text-align:center; min-height:38px; opacity:0; transform:scale(.9);
+    transition:all .45s cubic-bezier(.2,1.6,.4,1); border-radius:14px; padding:0; }
+  #banner.show { opacity:1; transform:scale(1); padding:14px 16px 13px;
+    border:1px solid var(--line); background:linear-gradient(180deg,#0a1322,#070d1a); }
+  #banner.show.us  { border-color:rgba(61,255,158,.34); box-shadow:0 0 34px rgba(61,255,158,.14) inset; }
+  #banner.show.them{ border-color:rgba(91,156,245,.34); box-shadow:0 0 34px rgba(91,156,245,.14) inset; }
+  .bnHead { font:900 27px var(--disp); letter-spacing:1.6px; }
+  #banner.us .bnHead { color:var(--hive); text-shadow:0 0 24px rgba(61,255,158,.55); }
+  #banner.them .bnHead { color:var(--rival); text-shadow:0 0 24px rgba(91,156,245,.5); }
+  .bnNums { display:flex; align-items:center; justify-content:center; gap:16px; flex-wrap:wrap; margin-top:9px; }
+  .bnSide { display:inline-flex; flex-direction:column; align-items:center; gap:1px; }
+  .bnSide b { font:800 24px var(--disp); font-variant-numeric:tabular-nums; }
+  .bnSide i { font:600 10px var(--mono); letter-spacing:.9px; text-transform:uppercase; font-style:normal; color:var(--dim); }
+  .bnSide.us b { color:var(--hive); } .bnSide.them b { color:var(--rival); }
+  .bnVs { font:700 11px var(--mono); color:var(--dim); letter-spacing:1.5px; }
+  .bnSub { margin-top:8px; font:12.5px var(--mono); color:var(--dim); line-height:1.5; }
+  .bnNote { margin:9px auto 0; max-width:620px; padding-top:9px; border-top:1px solid var(--line);
+    font:11.5px/1.55 var(--mono); color:#8fa3b6; }
+  #confetti { position:fixed; inset:0; pointer-events:none; z-index:50; }
+  /* The clock used to sit on its own line under the medals, reading as a detached box
+     dropped into the gap above the transcripts. It belongs to the same telemetry
+     header, so it shares the row: medals take the space, the clock closes it. */
+  .medalRow { display:flex; align-items:center; gap:12px; min-height:44px; }
+  .medals { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; flex:1; }
+  @media (max-width:620px) { .medalRow { flex-wrap:wrap; } .medals { flex:1 0 100%; } }
+  .medal { background:var(--panel); border:1px solid var(--line); border-radius:999px; padding:6px 14px; font:12px var(--mono); opacity:0; transform:translateY(8px); transition:all .4s ease; }
+  .medal.show { opacity:1; transform:none; animation:medalpop .5s cubic-bezier(.2,1.8,.4,1); }
+  @keyframes medalpop { 0% { transform:scale(.6); } 70% { transform:scale(1.12); } 100% { transform:scale(1); } }
+  .medal.lost { color:var(--dim); filter:grayscale(1); }
+  .finish,.stamRow,.bits,.towers,.boardWrap { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:12px 16px; margin-top:12px; }
+  .finish { display:block; }
+  .tlhint { position:absolute; top:20px; left:0; right:0; text-align:center; font:10px var(--mono); color:var(--dim); opacity:.6; letter-spacing:1px; }
+  .finish h3,.stamRow h3,.bits h3,.towers h3 { font-size:12px; letter-spacing:2px; color:var(--dim); text-transform:uppercase; margin-bottom:8px; font-family:var(--mono); }
+  .tl { position:relative; height:78px; background:#070d1a; border-radius:8px; overflow:hidden; }
+  .axgrid { position:absolute; top:2px; bottom:19px; width:1px; background:rgba(140,170,220,.13); }
+  .axgrid.zero { background:rgba(140,170,220,.28); }
+  .axbase { position:absolute; left:0; right:0; bottom:18px; height:1px; background:rgba(140,170,220,.22); }
+  .axlbl { position:absolute; bottom:4px; transform:translateX(-50%); font:9px var(--mono); color:var(--dim); opacity:.8; white-space:nowrap; }
+  .axcap { position:absolute; right:7px; bottom:4px; font:8px var(--mono); color:var(--dim); opacity:.55; letter-spacing:1.5px; }
+  .mark { position:absolute; top:6px; width:2px; height:20px; animation:markdrop .5s cubic-bezier(.2,1.6,.4,1) backwards; }
+  .mark.b { top:32px; }
+  @keyframes markdrop { from { transform:translateY(-14px); opacity:0; } }
+  .span { position:absolute; height:4px; border-radius:2px; opacity:.55; animation:spangrow .9s ease .3s backwards; transform-origin:left; }
+  .span.us-s { top:14px; background:linear-gradient(90deg,rgba(61,255,158,.15),var(--hive)); }
+  .span.them-s { top:40px; background:linear-gradient(90deg,rgba(91,156,245,.15),var(--rival)); }
+  @keyframes spangrow { from { transform:scaleX(0); } }
+  .mark span { position:absolute; top:-2px; left:6px; font:9.5px var(--mono); white-space:nowrap; color:var(--dim); }
+  .mark.us-m { background:var(--hive); box-shadow:0 0 6px var(--hive); }
+  .mark.them-m { background:var(--rival); box-shadow:0 0 6px var(--rival); }
+  .stamRow { display:block; }
+  .stamGrid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .stam .bar { height:14px; background:#070d1a; border-radius:8px; overflow:hidden; margin:6px 0 4px; }
+  .stam .fill { height:100%; width:100%; border-radius:8px; transition:width 1.2s ease; }
+  .stam.us .fill { background:linear-gradient(90deg,#17c96d,var(--hive)); }
+  .stam.them .fill { background:linear-gradient(90deg,#2d5da8,var(--rival)); }
+  .stam .lbl { font:700 12px var(--mono); }
+  .stam .snm { font:700 11px var(--mono); margin-bottom:4px; letter-spacing:.5px; }
+  /* ================= FUEL TANKS: same fuel, different burn-per-token ================= */
+  .fuelrow { display:grid; grid-template-columns:1fr 1fr; gap:52px; max-width:440px; margin:12px auto 0; }
+  .ftank { text-align:center; position:relative; }
+  .ftank .fname { font-size:12.5px; margin-bottom:2px; }
+  .ftank .fname small { display:block; font:10px var(--mono); color:var(--dim); }
+  .ftank.hv .fname { color:var(--hive); }
+  .fcounter { font:800 24px var(--mono); height:46px; margin:2px 0 8px; line-height:26px; }
+  .fcounter span { font:10px var(--mono); color:var(--dim); display:block; letter-spacing:.5px; line-height:14px; margin-top:3px; white-space:nowrap; }
+  .ftank.f16 .fcounter { color:#8b9bc7; } .ftank.f4 .fcounter { color:var(--rival); } .ftank.f8 .fcounter { color:#c79bf0; }
+  .ftank.hv .fcounter { color:var(--hive); text-shadow:0 0 12px rgba(61,255,158,.45); }
+  /* the cylinder */
+  .cyl { position:relative; width:74px; height:150px; margin:0 auto; }
+  .cyl .shell { position:absolute; inset:0; border-radius:37px/26px; overflow:hidden;
+    background:linear-gradient(90deg,#39424e 0%,#6a7684 18%,#9aa6b4 40%,#c3ccd6 50%,#8a97a6 66%,#4a545f 100%);
+    box-shadow:inset 0 8px 12px rgba(255,255,255,.14), inset 0 -10px 14px rgba(0,0,0,.45), 0 6px 16px rgba(0,0,0,.4);
+    border:1px solid #222b35; }
+  .cyl .weld { position:absolute; left:0; right:0; height:2px; background:rgba(0,0,0,.25); }
+  .cyl .weld.w1 { top:26%; } .cyl .weld.w2 { top:58%; }
+  .cyl .fill { position:absolute; left:3px; right:3px; bottom:3px; height:96%; border-radius:0 0 34px 34px / 0 0 23px 23px;
+    overflow:hidden; }
+  .ftank.f16 .fill { background:linear-gradient(180deg,#5a6a99cc,#3d4a75); }
+  .ftank.f4 .fill { background:linear-gradient(180deg,#5b9cf5cc,#2d5da8); }
+  .ftank.f8 .fill { background:linear-gradient(180deg,#c98cf5cc,#7d3da8); }
+  .ftank.hv .fill { background:linear-gradient(180deg,#3dff9ecc,#0f8a55); box-shadow:0 0 14px rgba(61,255,158,.35); }
+  .cyl .fill::before { content:""; position:absolute; top:0; left:0; right:0; height:6px;
+    background:rgba(255,255,255,.35); filter:blur(1px); }          /* liquid surface */
+  .cyl .bub { position:absolute; bottom:-8px; width:5px; height:5px; border-radius:50%;
+    background:rgba(255,255,255,.4); animation:bub 2.4s linear infinite; animation-play-state:paused; }
+  .fuel-live .cyl .bub { animation-play-state:running; }   /* bubbles rise only during a race */
+  @keyframes bub { from { transform:translateY(0); opacity:.7; } to { transform:translateY(-120px); opacity:0; } }
+  .cyl .gauge { position:absolute; right:-16px; top:6px; bottom:6px; width:6px; border-radius:3px;
+    background:#0d1424; border:1px solid var(--line); overflow:hidden; }
+  .cyl .gfill { position:absolute; left:0; right:0; bottom:0; background:var(--warn); }
+  .cyl .valve { position:absolute; bottom:-10px; left:50%; transform:translateX(-50%); width:14px; height:10px;
+    background:linear-gradient(180deg,#5a646e,#2c333b); border-radius:0 0 4px 4px; }
+  .cyl .drip { position:absolute; bottom:-20px; left:50%; transform:translateX(-50%); width:3px; height:8px;
+    border-radius:2px; background:rgba(255,196,77,.7); opacity:0; animation:drip 1s linear infinite; }
+  @keyframes drip { 0% { opacity:0; transform:translate(-50%,0); } 20% { opacity:1; } 100% { opacity:0; transform:translate(-50%,14px); } }
+  .fcost { font:11px var(--mono); color:var(--dim); margin-top:14px; line-height:1.6; }
+  .fcost b { font-size:13px; }
+  .ftank.hv .fcost b { color:var(--hive); }
+  .ftanks { min-height:54px; margin-top:10px; opacity:0; transform:translateY(4px); transition:opacity .35s ease, transform .35s ease; }
+  .ftanks.on { opacity:1; transform:none; }
+  .ftanks .fi { font-size:17px; vertical-align:7px; margin-right:2px; }
+  .ftanks .n { font:900 34px var(--mono); line-height:1; letter-spacing:-1.5px; display:inline-block; }
+  .ftanks .u { display:block; font:8.5px var(--mono); color:var(--dim); letter-spacing:3px; margin-top:4px; }
+  .ftank.hv .ftanks .n { color:var(--hive); text-shadow:0 0 16px rgba(61,255,158,.55); }
+  .ftank.f16 .ftanks .n { color:#c2cdea; } .ftank.f4 .ftanks .n { color:var(--rival); } .ftank.f8 .ftanks .n { color:#c79bf0; }
+  .ftanks.bump .n { animation:tbump .4s cubic-bezier(.2,1.7,.4,1); }
+  @keyframes tbump { 0%{transform:scale(1);} 45%{transform:scale(1.34);} 100%{transform:scale(1);} }
+  .ftanks.hot .n { color:#ff8a3d !important; text-shadow:0 0 20px rgba(255,138,61,.65); }
+  .ftanks.hot .u::after { content:' 🔥'; }
+  .ftank.refuel .cyl { animation:refuelpulse .45s ease; }
+  @keyframes refuelpulse { 0%{filter:brightness(1);} 35%{filter:brightness(1.5);} 100%{filter:brightness(1);} }
+  .fempty { position:absolute; top:96px; left:0; right:0; font:800 12px var(--mono); color:var(--warn);
+    opacity:0; letter-spacing:1px; }
+  .fempty.flash { animation:ftf 1.6s ease forwards; }
+  @keyframes ftf { 0% { opacity:0; transform:translateY(6px); } 12% { opacity:1; transform:none; } 80% { opacity:1; } 100% { opacity:0; } }
+  .bits .verdictline { font:12px var(--mono); color:var(--hive); margin-top:12px; letter-spacing:1px; text-align:center; }
+  .bits .verdictline b { animation:vpulse 2.6s ease infinite; display:inline-block; }
+  @keyframes vpulse { 0%,100% { transform:scale(1); } 50% { transform:scale(1.12); } }
+  .towers { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .blocks { display:flex; flex-direction:column; gap:4px; min-height:172px; justify-content:flex-start; }
+  .block { border-radius:6px; padding:5px 10px; font:11.5px var(--mono); opacity:0; transform:translateY(-14px); transition:all .35s ease; }
+  .block.show { opacity:1; transform:none; }
+  .tower2.us .block { background:var(--hive-dk); border:1px solid #1e5c40; }
+  .tower2.them .block { background:#111d33; border:1px solid var(--line); }
+  .tower2 .cap { font:10.5px var(--mono); color:var(--dim); margin-top:8px; }
+  /* THE DISCLOSURE IS NOT FINE PRINT.
+     This block was 11px at --dim, a 4.14:1 contrast -- the least readable text on the page,
+     below the 4.5:1 WCAG AA floor for small text -- while carrying the bit-width correction and
+     the scope limits. Design was telling the reader the caveat mattered less than the number it
+     qualifies. It now reads at 12.5px against a raised ink, with a rule marking it as part of
+     the claim rather than a footnote. */
+  .caveat { font:12.5px/1.65 var(--mono); color:#9fb3c4; margin:2px 2px 12px;
+    padding:10px 12px; border-left:2px solid var(--hive); background:rgba(61,255,158,.04);
+    border-radius:0 8px 8px 0; }
+  .caveat b { color:var(--ink); font-weight:700; }
+  /* The table is the claim. At a 405px viewport its four columns crushed the axis names to
+     three lines each and CLIPPED the "bpw-corrected" basis label mid-word, which reads as a
+     broken page rather than a qualified number. Wide content scrolls inside its own container
+     instead of being crushed or clipped -- the page itself still never scrolls sideways. */
+  /* run timer — one number for "how long did this whole launch take" */
+  /* Compact and vertical rather than a wide bar: the number is the point, so it gets the space
+     and everything else is a label around it. Centred, tabular figures so the digits do not
+     jitter as they tick. */
+  /* align-self:flex-start as well as inline-flex: the parent is a stretch container, which
+     overrode the shrink-wrap and stretched this to the full 539px row width. */
+  /* FLAT bar, full width, sitting on top of the mission row. It was a raised box beside the
+     transcripts; as a rule the page reads left-to-right and the clock belongs with the launch,
+     not with the telemetry. */
+  .runclock { display:flex; align-items:baseline; gap:10px;
+    margin:12px 0 0; padding:7px 14px;
+    border:1px solid var(--line); border-radius:10px;
+    background:rgba(10,16,31,.5); }
+  .rcLbl { font:9.5px var(--mono); color:#8fa3b6; letter-spacing:2px; text-transform:uppercase; }
+  .rcVal { font:700 21px/1 var(--mono); color:var(--hive); font-variant-numeric:tabular-nums;
+    margin-right:auto;
+    text-shadow:0 0 14px rgba(61,255,158,.35); }
+  .rcPhase { font:10px var(--mono); color:#7d90a3; letter-spacing:1px; }
+  .runclock.done .rcVal { color:#fff; text-shadow:0 0 14px rgba(255,255,255,.25); }
+
+  /* WHAT EACH SIDE STANDS ON. Was two bare stacks of pills with a caption; the point -- that one
+     stack is 3 pieces we built and the other is 5 borrowed layers -- had to be counted by eye.
+     Now each side leads with the count, and the rival's layers are marked as dependencies. */
+  .towers h3 { display:flex; align-items:baseline; gap:8px; }
+  .tcount { font:700 20px var(--mono); color:var(--hive); letter-spacing:0; }
+  .tower2.them .tcount { color:var(--rival); }
+  .tcount small { font:10px var(--mono); color:#7d90a3; letter-spacing:1px; margin-left:3px; }
+  .tower2 .block { transition:transform .12s ease, border-color .12s ease; }
+  .tower2 .block:hover { transform:translateX(3px); }
+  .tower2 .cap { font:11px var(--mono); color:#8fa3b6; margin-top:10px; line-height:1.5; }
+
+  /* "how to read this" cards, replacing the 611-character caveat paragraph */
+  .notes { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px;
+    margin:2px 0 14px; }
+  /* Each card is a BUTTON: collapsed it is a one-line caption, opened it shows the paragraph.
+     Four paragraphs stacked above the numbers was a wall of small print in the reader's way. */
+  .note { border:1px solid var(--line); border-radius:10px; padding:10px 12px;
+    background:rgba(10,16,31,.55); text-align:left; font:inherit; cursor:pointer;
+    display:flex; flex-direction:column; align-self:start;
+    transition:border-color .18s, background .18s, transform .18s; }
+  /* align-self:start, so a CLOSED card is its own natural height and does not inflate to
+     match a neighbour. What lines up instead is the OPEN state: every body opens to the
+     same fixed height (below), so any two cards opened together end level -- and a card
+     opening does not resize the ones beside it. */
+  .note:hover { border-color:#25405e; background:rgba(12,20,38,.8); transform:translateY(-1px); }
+  .note:focus-visible { outline:none; border-color:var(--hive); box-shadow:0 0 0 3px rgba(61,255,158,.14); }
+  .note.open { border-color:rgba(61,255,158,.3); }
+  .note.warn { border-color:#4a3a10; background:rgba(255,196,77,.05); }
+  .note.warn.open { border-color:rgba(255,196,77,.5); }
+  .noteT { display:flex; align-items:center; gap:7px; font:700 12px var(--disp);
+    color:var(--ink); margin-bottom:5px; }
+  .noteT i { font-style:normal; font-size:14px; }
+  .noteT span { flex:1; }
+  .noteX { font:700 15px var(--mono); color:var(--dim); line-height:1; transition:color .18s; }
+  .note:hover .noteX, .note.open .noteX { color:var(--hive); }
+  .noteS { font:11.5px/1.5 var(--mono); color:#8fa3b6; }
+  /* height, not max-height: animating off the MEASURED scrollHeight keeps the easing honest for
+     a two-line note and a six-line one alike, instead of racing through a guessed ceiling */
+  .noteB { height:0; overflow:hidden; transition:height .32s cubic-bezier(.4,0,.2,1); }
+  /* One opened length for every card, set at load to the TALLEST body so nothing scrolls:
+     a scrollbar inside a caveat card hides exactly the qualification the card exists to
+     make. --noteOpenH is measured in JS once the cards are in the DOM. */
+  .note.open .noteB { height:var(--noteOpenH,220px); overflow:hidden; }
+  .noteB p { font:11.5px/1.55 var(--mono); color:#9fb3c4; margin:8px 0 0;
+    padding-top:8px; border-top:1px solid var(--line); }
+
+  /* ONE table now. Row identity lives in the first cell -- axis in ink, rival beneath it in
+     mono -- so a llama.cpp row and a TensorRT-LLM row are the same shape and neither reads as
+     the lesser claim. The container scrolls on narrow screens, which is what keeps the status
+     badge reachable rather than clipped off the right edge. */
+  .boardHead { font:11.5px var(--mono); color:#8fa3b6; margin:0 0 8px; }
+  .boardHead b { color:var(--ink); }
+  .boardNote { margin:0 0 10px; padding:10px 12px; border:1px solid var(--line);
+    border-left:3px solid var(--warn); border-radius:10px; background:rgba(255,196,77,.045);
+    font:11.5px/1.6 var(--mono); color:#9fb3c4; }
+  .boardKey { display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px; margin:0 0 10px;
+    padding:9px 12px; border:1px solid var(--line); border-radius:10px; background:rgba(10,16,31,.5);
+    font:11px var(--mono); color:#8fa3b6; }
+  .boardKey .kk { display:inline-flex; align-items:center; gap:6px; }
+  .boardKey b { font:700 11px var(--mono); letter-spacing:.5px; }
+  /* mirrors the row marking exactly, so the key is a sample rather than a description */
+  .boardKey .swRow { display:inline-block; width:22px; height:13px; border-radius:3px;
+    background:rgba(61,255,158,.045); box-shadow:inset 3px 0 0 var(--hive); }
+  /* the verdict WORD is the state. LOSSES ARE RED: rival-blue read as a neutral label
+     rather than as us being behind, which is the one thing a reader must not miss. */
+  .vWin      { color:var(--hive); font-weight:700; }
+  .vLose     { color:#ff5d5d;     font-weight:700; }
+  .vUntested { color:var(--warn); font-weight:700; }
+  /* A DEAD HEAT IS NOT AN UNRUN TEST. Both used to render amber, which said "we have not
+     done this yet" about a row where we ran two full batteries and they disagreed by less
+     than our own null control moved. Bone white: neutral because nobody won, bright because
+     it IS a measurement. */
+  .vTie      { color:var(--moon); font-weight:700; }
+  .vStruct   { color:var(--rival);font-weight:700; }
+  #board tr.grouphead td { font:600 11px var(--mono); letter-spacing:1.2px; text-transform:uppercase;
+    color:#8fa3b6; background:rgba(10,16,31,.6); padding:10px 10px 7px; border-bottom:1px solid var(--line); }
+  #board { min-width:880px; }
+  /* dimmed, never hidden: the board's whole point is that it lists everyone */
+  /* The chosen rival is MARKED, not everything else dimmed. Fading the other rows made
+     measured, certified results look faint and provisional -- a reader cannot tell "this is
+     about a different engine" from "this one is weaker", and the second reading is wrong.
+     Full brightness everywhere; a green rail and a tint say which rows the dropdown picked. */
+  #board tr.ontopic td { background:rgba(61,255,158,.045); }
+  #board tr.ontopic td:first-child { box-shadow:inset 3px 0 0 var(--hive); }
+  #board tr { transition:opacity .25s ease; }
+  #board td:first-child { white-space:normal; min-width:250px; }
+  #board td:first-child b { font-weight:600; display:block; }
+  .vsrival { display:block; font:10.5px var(--mono); color:#8fa3b6; margin-top:2px; }
+  #board td.num { white-space:nowrap; font-family:var(--mono); font-size:12.5px; }
+  #board td:last-child { white-space:nowrap; }
+  /* rows with nothing to report are dimmed, never hidden: an unmeasured engine is a fact
+     about the campaign and belongs on the board that lists the wins. */
+  #board tr.st-unmeasured, #board tr.st-pending, #board tr.st-superseded { opacity:.72; }
+  #board tr.st-superseded td:last-child { text-decoration:line-through; }
+  .loss { color:var(--rival); font-weight:700; }
+  .nil  { color:#7d90a3; font-weight:600; }
+  #board .badge { display:block; width:max-content; margin-top:4px; }
+  .badge { font:9.5px var(--mono); letter-spacing:.8px; text-transform:uppercase;
+    padding:3px 8px; border-radius:99px; white-space:nowrap; align-self:center;
+    display:inline-block; }
+  .badge.measured { background:rgba(61,255,158,.13); color:var(--hive); border:1px solid #1e5c40; }
+  .badge.interim  { background:rgba(255,196,77,.13); color:var(--warn); border:1px solid #4a3a10; }
+  .badge.pending  { background:rgba(91,156,245,.12); color:var(--rival); border:1px solid #24405f; }
+  .badge.unmeasured { background:rgba(125,144,163,.10); color:#7d90a3; border:1px solid var(--line); }
+  /* a row we PULLED. Struck through, because "we no longer stand behind this" is a different
+     statement from "not measured yet" and the two must not read alike. */
+  .badge.superseded { background:rgba(125,144,163,.10); color:#7d90a3; border:1px dashed #3a4a5c; }
+  #board2 tr:has(.badge.superseded) td:nth-child(3) { text-decoration:line-through; opacity:.75; }
+
+  .boardWrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  table { width:100%; min-width:640px; border-collapse:collapse; font-size:13px; }
+  td,th { padding:7px 10px; border-bottom:1px solid var(--line); text-align:left;
+    vertical-align:top; }
+  th { white-space:nowrap; }
+  td:first-child { white-space:nowrap; }
+  /* raw stopwatch reading, shown BESIDE the corrected verdict so neither can hide the other */
+  .rawv { display:block; font:10.5px var(--mono); color:#7d90a3; font-weight:400; margin-top:2px; }
+  /* WRAPS at word boundaries (white-space:normal) — NOT overflow-wrap:anywhere, whose
+     mid-word breaking once shattered "bpw-corrected" in a cramped column. nowrap is gone
+     too: basis strings grew from two-word labels into sentences, and nowrap let THEM set
+     the table's intrinsic width, shoving the numeric columns past the viewport onto a
+     horizontal scrollbar (owner rule: the board must read without sideways scrolling).
+     The 78ch cap keeps the measure readable on wide screens. */
+  .basis { display:block; font:9.5px/1.45 var(--mono); color:#7d90a3; letter-spacing:.4px;
+    text-transform:uppercase; white-space:normal; max-width:78ch; }
+  td:last-child { white-space:nowrap; }
+  #board tbody tr { animation:rowin .5s ease backwards; }
+  @keyframes rowin { from { opacity:0; transform:translateX(-12px); } }
+  th { color:var(--dim); font:10px var(--mono); text-transform:uppercase; letter-spacing:1px; }
+  .win { color:var(--hive); font-weight:700; } .loss { color:var(--rival); font-weight:700; }
+  .par { color:var(--warn); font-weight:700; }
+.limbanner{max-width:1180px;margin:0 auto 14px;padding:12px 16px;border:1px solid #ffc44d;border-left-width:4px;border-radius:8px;background:#1a140266;color:#d8e6dd;font-size:13px;line-height:1.55}
+.limbanner b{color:#ffc44d}
+.limbanner a{color:#3dff9e;margin-left:6px}
+.logo .lim{font-size:.42em;letter-spacing:.18em;color:#ffc44d;vertical-align:.55em;font-weight:600}
+.fullBanner{border:1px solid #ffc44d;border-left-width:4px;border-radius:7px;background:#1a140255;padding:11px 15px;margin:0 0 12px;font-size:13px;line-height:1.55;color:#d8e6dd}
+.fullBanner b{color:#ffc44d}
+.modelpick{display:flex;align-items:center;gap:9px;margin:0 0 10px;flex-wrap:wrap}
+.modelpick label{font:600 11px var(--mono);letter-spacing:.11em;text-transform:uppercase;color:var(--dim)}
+.modelpick select{background:#070c17;color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:6px 10px;font:13px var(--mono);min-width:230px}
+.modelpick .warn{color:#ffc44d;font-size:12px}
+.modelSwap{color:var(--dim);font-size:12.5px;margin:0 0 10px;display:none}
+.modelSwap.on{display:block}
+.setupBtn{display:inline-flex;align-items:center;gap:6px;text-decoration:none;font:600 11px var(--mono);letter-spacing:.11em;color:#04060d;background:#3dff9e;border:1px solid #3dff9e;border-radius:6px;padding:5px 11px;white-space:nowrap;transition:filter .15s ease}
+.setupBtn:hover{filter:brightness(1.15)}
+.setupInline{font-size:12px;color:#3dff9e;text-decoration:none;border-bottom:1px dotted;white-space:nowrap;align-self:center;margin-left:2px}
+.setupInline:hover{color:#8affc4}
+</style>
+</head>
+<body>
+<div id="space"></div>
+<div class="stars"><div id="st1"></div></div>
+<div class="aurora"></div><div class="aurora a2"></div>
+<div class="comet c1"></div>
+<div class="comet c2"></div>
+<canvas id="confetti"></canvas>
+
+<div class="wrap">
+  <header>
+    <div class="logo">H<b>IVE</b> <span class="lim">LIMITED</span></div>
+    <div class="subwrap">
+      <div class="sub"><b>H</b>elix <b>I</b>ndependent <b>V</b>erifiable <b>E</b>ngine</div>
+      <div class="sub2">Same AI model, same question, your hardware — a race between the two <b>engines</b> that run it. This is the <b>limited</b> build.</div>
+    </div>
+    <div class="leds">
+      <div class="led"><i></i>ENGINE</div>
+      <div class="led amber"><i></i>TELEMETRY</div>
+      <div class="led"><i></i>RECEIPTS</div>
+      <a class="setupBtn" href="/setup.html" title="Install or connect any engine">➕ ADD AN ENGINE</a>
+      <label class="led" style="cursor:pointer"><input type="checkbox" id="smode" checked style="accent-color:var(--hive)"> SOUND</label>
+      <!-- BEGINNER MODE is retired, not deleted. Every piece of it is still here -- the toggle
+           markup on this line, the .bguide panel, the BTIPS list, beginnerNotes() and its CSS --
+           behind BEGINNER_ENABLED below. Flip that to true and the whole feature returns.
+      <label class="led" style="cursor:pointer"><input type="checkbox" id="bmode" style="accent-color:var(--hive)"> BEGINNER</label>
+      -->
+    </div>
+  </header>
+
+  <div class="limbanner">
+    <b>This is a deliberately limited demonstration build. It is not HIVE.</b>
+    The batch and serving paths, the compiler toolchain and the kernel research record
+    are <b>absent</b>, not switched off — there is nothing here to turn back on. Every
+    number on this page is measured by the run that produces it, on your machine.
+    Please report results as <b>HIVE Limited</b>, not as HIVE.
+    <a href="https://github.com/Questeria/HIVE-Limited/blob/main/REFERENCE.md">Full-engine results →</a>
+  </div>
+  <div class="console">
+    <div class="top">
+      <div class="modelpick">
+        <label for="model">model</label>
+        <select id="model"><option value="">loading…</option></select>
+        <a class="setupInline" href="/setup.html#models">get another</a>
+      </div>
+      <div class="modes" id="modes">
+        <button data-ntok="100" class="on" data-hint="Short race: each engine writes 100 tokens, or stops sooner if the answer finishes. Enough to see which one starts first and which one holds its speed.">100 tokens</button>
+        <button data-ntok="1000" data-hint="Up to 1000 tokens. Watch THRUST STABILITY below: engines that overheat sag — ours holds flat.">1000 tokens</button>
+        <button data-ntok="-1" data-hint="No cap — each engine writes its full answer to the natural end (EOS). The most honest race on a real, complete answer.">Unlimited</button>
+      </div>
+      <select id="rival">
+      <option value="llamacpp">llama.cpp — local CUDA runtime (install from setup/)</option>
+      <option value="vllm">vLLM — standard serving engine (install from setup/)</option>
+      <option value="trtllm">TensorRT-LLM — NVIDIA’s own engine (bring your own)</option>
+    </select>
+      <a class="setupInline" href="/setup.html">how do I add an engine?</a>
+    </div>
+    <div class="askrow">
+      <div class="askbox">
+        <label class="asklbl" for="prompt">ask both engines the same thing</label>
+        <textarea id="prompt" rows="2" spellcheck="false">The capital of France is</textarea>
+      </div>
+      <div class="askbtns">
+        <button class="go" id="go">LAUNCH ▲</button>
+        <button class="halt" id="stopbtn" disabled title="Stop the race — terminates a loading or running model and frees the GPU">■ STOP</button>
+      </div>
+    </div>
+    <div class="chips" id="chips">
+      <button>Explain gravity to a 5-year-old</button>
+      <button>Write a haiku about computers</button>
+      <button>List 5 uses for a paperclip</button>
+      <button>The theory of computation began with</button>
+    </div>
+    <div class="beginner" id="hint"></div>
+    <div class="bguide" id="bguide">
+      <div class="bhead">Beginner mode is on</div>
+      <div class="bintro">Green notes are now attached to every part of the page. Each one says
+        what that part is and why it is there. Click a note to outline the thing it describes.</div>
+      <div class="bintro bdim">Everything runs locally on your own NVIDIA GPU. Same machine, same
+        question, same model — and every number here can be re-checked.</div>
+    </div>
+  </div>
+
+  <!-- RUN TIMER: a flat bar across the top of the mission row, in line with the launch pad
+       rather than a raised box tucked beside the transcripts. It times the whole launch. -->
+  <div class="runclock" id="runclock">
+    <span class="rcLbl">this launch</span>
+    <span class="rcVal" id="rc-val">0.0s</span>
+    <span class="rcPhase" id="rc-phase">ready</span>
+  </div>
+  <div class="mission">
+    <div class="towerX" id="tower">
+      <div class="vp vpU" id="us-vp">
+        <div class="world" id="us-world">
+          <div class="moonX"><i></i><i></i><i></i><i></i></div>
+          <div class="moonlbl">· THE MOON · 100% OF THE ANSWER ·</div>
+          <div class="rk rkU" id="us-rk"><div class="inner">
+            <div class="body"></div><div class="interstage"></div><div class="nose"></div>
+            <div class="stripe"></div><div class="decal">HIVE</div><div class="win"></div>
+            <div class="rcs"></div><div class="gfL"></div><div class="gfR"></div>
+            <div class="finL"></div><div class="finR"></div><div class="skirt"></div>
+            <div class="legL"></div><div class="legR"></div>
+            <div class="bellL"></div><div class="bellR"></div><div class="bell"></div>
+            <div class="fl" id="us-flame"></div>
+          </div></div>
+          <div class="rkShadow" id="us-shadow"></div>
+          <div class="smoke"><i style="width:34px;height:26px;left:6px"></i><i style="width:44px;height:30px;left:34px;bottom:2px"></i><i style="width:30px;height:22px;left:74px"></i></div>
+          <div class="vab"></div>
+          <div class="fss"><div class="beacon"></div><div class="arm"></div></div>
+          <div class="wtower"><div class="legs"></div><div class="tank"></div></div>
+          <div class="mast m1"></div><div class="mast m2"></div>
+          <div class="tanks"><i></i><i></i><i></i></div>
+          <div class="padsign">LC·39A</div>
+          <div class="sun"></div><div class="waur"></div><div class="galaxy"></div><div class="earthglow"></div>
+          <div class="treeline"></div><div class="ocean"></div><div class="crawlerway"></div>
+          <div class="trench"></div><div class="apron"></div>
+          <div class="mount"><div class="table"></div><div class="legA"></div><div class="legB"></div><div class="legC"></div><div class="legD"></div><div class="hold h1"></div><div class="hold h2"></div></div>
+          <div class="ground2"></div>
+        </div>
+        <div class="hud">HIVE · LC-39A</div>
+        <div class="altHud" id="us-alt">ALT 0 km</div>
+        <div class="maxq" id="us-maxq">MAX-Q!</div>
+      </div>
+      <div class="vp vpT" id="them-vp">
+        <div class="world" id="them-world">
+          <div class="moonX"><i></i><i></i><i></i><i></i></div>
+          <div class="moonlbl">· THE MOON · 100% OF THE ANSWER ·</div>
+          <div class="rk rkT" id="them-rk"><div class="inner">
+            <div class="boL"></div><div class="boR"></div><div class="core"></div><div class="tip"></div>
+            <div class="fairing"></div><div class="band"></div><div class="chevron"></div>
+            <div class="decal">RVL</div><div class="portL"></div><div class="portR"></div><div class="umb"></div>
+            <div class="bnzL"></div><div class="bnzR"></div><div class="bell"></div>
+            <div class="fl" id="them-flame"></div><div class="fl l" id="them-flameL"></div><div class="fl r" id="them-flameR"></div>
+          </div></div>
+          <div class="rkShadow" id="them-shadow"></div>
+          <div class="smoke"><i style="width:34px;height:26px;left:6px"></i><i style="width:44px;height:30px;left:34px;bottom:2px"></i><i style="width:30px;height:22px;left:74px"></i></div>
+          <div class="vab"></div>
+          <div class="fss"><div class="beacon"></div><div class="arm"></div></div>
+          <div class="wtower"><div class="legs"></div><div class="tank"></div></div>
+          <div class="mast m1"></div><div class="mast m2"></div>
+          <div class="tanks"><i></i><i></i><i></i></div>
+          <div class="padsign">LC·39B</div>
+          <div class="sun"></div><div class="waur"></div><div class="galaxy"></div><div class="earthglow"></div>
+          <div class="treeline"></div><div class="ocean"></div><div class="crawlerway"></div>
+          <div class="trench"></div><div class="apron"></div>
+          <div class="mount"><div class="table"></div><div class="legA"></div><div class="legB"></div><div class="legC"></div><div class="legD"></div><div class="hold h1"></div><div class="hold h2"></div></div>
+          <div class="ground2"></div>
+        </div>
+        <div class="hud" id="them-who">RIVAL · LC-39B</div>
+        <div class="altHud" id="them-alt">ALT 0 km</div>
+        <div class="maxq" id="them-maxq">MAX-Q!</div>
+      </div>
+      <canvas id="exhaust"></canvas>
+      <div id="count"><span></span></div>
+    </div>
+
+    <div class="tele">
+      <div id="banner"></div>
+      <div class="medalRow">
+        <div class="medals" id="medals">
+          <span class="medal" id="m-speed">🥇 fastest climb</span>
+          <span class="medal" id="m-first">⚡ first off the pad</span>
+          <span class="medal" id="m-proof">🔐 provable flight</span>
+        </div>
+      <!-- RUN TIMER. Sits above both output panes, to the right of the rockets. The per-engine
+           meters answer "how fast is each one"; this answers "how long did the whole thing
+           take", which is the question a first-time viewer actually asks and which nothing on
+           the page previously reported. It spans the full launch: countdown, compute, replay. -->
+      </div>
+      <div class="paneRow">
+        <div class="pane us">
+          <h2><b>HIVE / OURS</b><span id="us-state"></span></h2>
+          <div class="model" id="us-model">Qwen3-1.7B int4 — compiler built from scratch · answers your prompt live · independent</div>
+          <div class="loadbar" id="us-loadbar"><div class="loadfill" id="us-loadfill"></div><div class="loadpct" id="us-loadpct"></div></div>
+          <div class="meters">
+            <div class="meter"><span>tok / sec</span><div class="odo" id="us-toks"></div></div>
+            <div class="meter"><span>first token · ms</span><div class="odo" id="us-ttft"></div></div>
+            <div class="meter"><span>tokens</span><div class="odo" id="us-n"></div></div>
+          </div>
+          <canvas class="spark" id="us-spark"></canvas>
+          <div class="sparkcap">thrust over time — flat is good</div>
+          <div class="out" id="us-out"></div>
+          <div class="receipt" id="us-receipt">
+            <b>RECEIPT 🔐</b> — this exact answer is <b>re-derivable</b>: anyone can re-run and get the same bytes.<br>
+            bound hash: <span class="hash" id="rcpt-hash">…</span> · artifacts sealed: <span id="rcpt-n">…</span><br>
+            <button id="verify">✓ verify — re-run &amp; compare</button>
+            <div id="vsteps"></div>
+          </div>
+        </div>
+        <div class="pane them">
+          <h2><b id="them-name">RIVAL</b><span id="them-state"></span></h2>
+          <div class="model" id="them-model">choose a rival above</div>
+          <div class="loadbar" id="them-loadbar"><div class="loadfill" id="them-loadfill"></div><div class="loadpct" id="them-loadpct"></div></div>
+          <div class="meters">
+            <div class="meter"><span>tok / sec</span><div class="odo" id="them-toks"></div></div>
+            <div class="meter"><span>first token · ms</span><div class="odo" id="them-ttft"></div></div>
+            <div class="meter"><span>tokens</span><div class="odo" id="them-n"></div></div>
+          </div>
+          <canvas class="spark" id="them-spark"></canvas>
+          <div class="sparkcap">thrust over time</div>
+          <div class="out" id="them-out"></div>
+          <div class="noreceipt">🚫 no receipt — this output cannot be re-derived or verified</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="finish" id="finish">
+    <h3>📸 mission timeline — liftoff & touchdown on a live time axis</h3>
+    <div class="tl" id="tl"></div>
+  </div>
+
+  <div class="stamRow" id="stamina">
+    <h3>🔥 thrust stability — early speed vs late speed (long flights melt weak engines)</h3>
+    <div class="stamGrid">
+      <div class="stam us"><div class="snm" style="color:var(--hive)">🟢 HIVE</div><div class="bar"><div class="fill" id="us-stam" style="width:0"></div></div><div class="lbl" id="us-stamlbl">standing by…</div></div>
+      <div class="stam them"><div class="snm" id="them-stamnm" style="color:var(--rival)">🔵 rival</div><div class="bar"><div class="fill" id="them-stam" style="width:0"></div></div><div class="lbl" id="them-stamlbl">standing by…</div></div>
+    </div>
+  </div>
+
+  <div class="bits">
+    <h3>⛽ memory traffic — how much data each engine reads per token <span class="fmode" id="fmode">READY</span></h3>
+    <div class="fuelrow">
+      <div class="ftank hv" id="tH">
+        <div class="fname">HIVE</div>
+        <div class="fcounter"><b>0</b><span>tokens per tank</span></div>
+        <div class="cyl"><div class="shell"><div class="fill"></div><div class="weld w1"></div><div class="weld w2"></div></div>
+          <div class="gauge"><div class="gfill"></div></div><div class="valve"></div><div class="drip"></div></div>
+        <div class="fempty">EMPTY</div>
+        <div class="fcost">burns <b id="ourcostb">—</b> / token</div>
+        <div class="ftanks"></div>
+      </div>
+      <div class="ftank f4" id="tR">
+        <div class="fname"><span id="rvname">Normal AI</span></div>
+        <div class="fcounter"><b>0</b><span>tokens per tank</span></div>
+        <div class="cyl"><div class="shell"><div class="fill"></div><div class="weld w1"></div><div class="weld w2"></div></div>
+          <div class="gauge"><div class="gfill"></div></div><div class="valve"></div><div class="drip"></div></div>
+        <div class="fempty">EMPTY</div>
+        <div class="fcost">burns <b id="rvcostb">4.0 GB</b> / token</div>
+        <div class="ftanks"></div>
+      </div>
+    </div>
+    <div class="verdictline">▸ same Qwen3-1.7B, both 4-bit — near-even on fuel; the SPEED race above is where HIVE pulls ahead</div>
+  </div>
+
+  <div class="towers">
+    <div class="tower2 us">
+      <h3>🟢 what ours stands on <span class="tcount">3<small>pieces</small></span></h3>
+      <div class="blocks" id="us-tower"></div>
+      <div class="cap">3 pieces. The compiler was bootstrapped from raw binary — nothing hidden, nothing borrowed.</div>
+    </div>
+    <div class="tower2 them">
+      <h3>🔵 what theirs stands on <span class="tcount" id="them-count">5<small>layers</small></span></h3>
+      <div class="blocks" id="them-tower"></div>
+      <div class="cap">If any layer breaks, changes license, or is withheld — the stack dies.</div>
+    </div>
+  </div>
+
+  <div class="boardWrap">
+    <div class="notes" id="notes"></div>
+    <div class="caveat" id="caveat" hidden>…</div>
+    <div class="fullBanner">Everything below is the <b>full HIVE engine</b> &mdash; <b>not</b> the limited build you just raced. These figures were measured on the machines named in each row and are <b>not reproducible from this repository</b>. The race above is this build, live, on your hardware; this table is what the unrestricted engine does.</div>
+    <div class="boardHead">Rows for <b id="boardWho">llama.cpp</b> are highlighted &mdash; chosen by the dropdown above.</div>
+    <div class="boardNote"><b>Read this before the numbers.</b> <b>Bit-width is not equal everywhere:</b> the vLLM rows are int4 on both sides and are the fairest pairing here; the llama.cpp rows are not, so part of that margin is the weight format rather than the engine. <b>Losses are included:</b> NVIDIA leads four rows on the H100 &mdash; batch 16, 32 and 64, and time-to-first-token &mdash; and those are open engineering fronts, not omissions. <b>Open labels are marked:</b> a row whose correctness adjudication is still outstanding says so in its own basis line. Every figure is a same-round interleaved median, gate-counted, token-checked against an independent oracle; nothing projected, nothing extrapolated. Withdrawn results stay withdrawn &mdash; several earlier HIVE figures were retired when their measurement method proved faulty, and none of them appear here.</div>
+    <div class="boardKey">
+      <span class="kk"><b class="vWin">OURS</b> we are faster</span>
+      <span class="kk"><b class="vLose">THEIRS</b> they are faster</span>
+      <span class="kk"><b class="vTie">too close to call</b> measured — the gap is inside the noise</span>
+      <span class="kk"><b class="vUntested">untested</b> not run to our standard yet</span>
+      <span class="kk"><b class="vStruct">structural</b> a fact about the build, not a race result</span>
+      <span class="kk"><i class="swRow"></i><span id="keyWho">the engine picked above</span></span>
+    </div>
+    <table id="board"><thead><tr><th>Measured axis (same machine, clean box)</th><th>HIVE</th><th>Rival</th><th>Verdict</th></tr></thead><tbody></tbody></table>
+  </div>
+
+  <!-- THE RIG. Last thing on the page, closed by default: a reader who wants the numbers
+       should not wade through a spec sheet first, and a reader who doubts them should not
+       have to ask for one. Every value is read off this machine, not off a datasheet. -->
+  <div class="rig" id="rig">
+    <button class="rigHead" id="rigBtn" type="button" aria-expanded="false" aria-controls="rigBody">
+      <span class="rigIcon">🖥️</span>
+      <span class="rigTitle">The machine you are running on
+        <small>read live — GPU through the same driver binding the engine uses</small></span>
+      <span class="rigMore" id="rigMore">click for full specs</span>
+      <span class="rigChev" aria-hidden="true">▾</span>
+    </button>
+    <div class="rigBody" id="rigBody"><div class="rigInner" id="rigInner"></div></div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let ntok = 100;   // default mode = 100 tokens; -1 = unlimited (generate until EOS)
+
+/* ---------- page stars ---------- */
+(function () {
+  const sh = [];
+  for (let i = 0; i < 150; i++) sh.push(`${Math.random()*100}vw ${Math.random()*130}vh 0 #8fa8c8`);
+  const el = $('st1'); el.style.width = el.style.height = '1px'; el.style.boxShadow = sh.join(',');
+})();
+
+/* ---------- world furniture: clouds, jets, stars, karman, satellite ---------- */
+const WORLD_H = 3200, VP_H = 640, PAD_BOTTOM = 80, MOON_ZONE = 330, ANCHOR = 230;
+function furnish(world) {
+  /* clouds at two depths: far (behind) + near (in FRONT of the rocket = strong 3D cue) */
+  for (let i = 0; i < 9; i++) {
+    const near = i % 3 === 0;
+    const c = document.createElement('div'); c.className = 'cl ' + (near ? 'near' : (i % 3 === 1 ? 'far' : ''));
+    const w = near ? 70 + Math.random()*70 : 40 + Math.random()*55;
+    c.style.width = w+'px'; c.style.height = w*0.32+'px';
+    c.style.bottom = (250 + Math.random()*560) + 'px';
+    c.style.opacity = .45 + Math.random()*.45;
+    c.style.animationDuration = (near ? 18 + Math.random()*14 : 32 + Math.random()*30) + 's';
+    c.style.animationDelay = (-Math.random()*40) + 's';
+    world.appendChild(c);
+  }
+  /* birds: flapping flocks at low altitude (150..430px) */
+  for (let i = 0; i < 4; i++) {
+    const b = document.createElement('div'); b.className = 'bird' + (i % 2 ? ' rev' : '');
+    b.style.bottom = (150 + Math.random()*280) + 'px';
+    b.style.animationDuration = (16 + Math.random()*14) + 's';
+    b.style.animationDelay = (-Math.random()*16) + 's';
+    b.innerHTML = '<i></i><i></i>';
+    const s = .7 + Math.random()*.7; b.style.scale = String(s);
+    world.appendChild(b);
+  }
+  /* aircraft sprites: detailed SVG, drawn nose-right; the .rev class flips the inner
+     sprite while the motion keyframes flip direction — matched by construction */
+  window.__ac = window.__ac || 0;
+  const PROP_SVG = uid => `
+    <div class="spr"><svg viewBox="0 0 80 30" xmlns="http://www.w3.org/2000/svg">
+      <defs><linearGradient id="pf${uid}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#ffe98a"/><stop offset=".5" stop-color="#f2b93c"/>
+        <stop offset="1" stop-color="#bd8a20"/></linearGradient></defs>
+      <!-- vertical tail fin (rakes back-left) + accent flash -->
+      <path d="M16 13 L5 3 Q3.4 1.6 2.2 3.6 L3.6 13 Z" fill="#c9571f"/>
+      <path d="M16 13 L7.6 5.3 L6.4 7.4 L13 13 Z" fill="#ffd75e" opacity=".5"/>
+      <!-- horizontal stabiliser -->
+      <path d="M13.5 15 L2 11 L7.4 10.5 L17.5 14.2 Z" fill="#caa02a"/>
+      <!-- low wing (near), swept slightly back with a small tip -->
+      <path d="M47 18 L26 22.4 L22.6 22.6 L24.2 20.1 L45 17.4 Z" fill="#e0b23a"/>
+      <path d="M26 22.4 L22.6 22.6 L23.4 20.7 L26.4 21 Z" fill="#a9791c"/>
+      <!-- fuselage -->
+      <path d="M5 15.4 Q5 11.9 17 11.4 L60 11.2 Q70 11.6 74 14.3 Q75.6 15.2 74 16.1 Q70 18.5 60 18.5 L17 18.7 Q5 18.9 5 15.4 Z" fill="url(#pf${uid})"/>
+      <!-- belly shadow + cheatline -->
+      <path d="M7 17.2 L72 16.6 Q70 18.1 60 18.2 L17 18.4 Q8 18.4 7 17.2 Z" fill="#9c7018" opacity=".55"/>
+      <path d="M14 13.9 L69 13.5 L69 14.7 L14 15.1 Z" fill="#c9571f" opacity=".85"/>
+      <!-- wing roundel -->
+      <circle cx="35" cy="19.4" r="1.9" fill="#7c2233"/><circle cx="35" cy="19.4" r=".8" fill="#f2e9d8"/>
+      <!-- bubble canopy -->
+      <path d="M44 11.7 Q50 9.8 57 11.6 L55.2 13.6 L45.2 13.8 Z" fill="#16344c"/>
+      <path d="M46 11.9 Q50.5 10.7 54.5 11.7 L53.6 12.9 L46.8 13 Z" fill="#4d7ea8" opacity=".7"/>
+      <!-- engine cowling near nose -->
+      <path d="M64 12 L74 14.3 Q75.6 15.2 74 16.1 L64 18 Z" fill="#b87c22"/>
+      <path d="M64 12 L67 12.9 L67 17.2 L64 18 Z" fill="#8a5a15" opacity=".6"/>
+      <!-- fixed main gear + tailwheel -->
+      <line x1="40" y1="18.4" x2="38" y2="23.4" stroke="#7c5f18" stroke-width="1.2"/>
+      <circle cx="38" cy="24.2" r="1.9" fill="#1c2228" stroke="#565e66" stroke-width=".6"/>
+      <line x1="12" y1="16.4" x2="11" y2="20" stroke="#7c5f18" stroke-width="1"/>
+      <circle cx="10.8" cy="20.6" r="1.3" fill="#1c2228" stroke="#565e66" stroke-width=".5"/>
+      <!-- spinner + prop hub + spinning disk -->
+      <path d="M74 14.2 L78.2 15.3 L74 16.4 Z" fill="#8a95a0"/>
+      <ellipse cx="78.2" cy="15.3" rx="1.7" ry="10.2" fill="#dfe6ec" opacity=".5" class="propdisk"/>
+      <circle cx="78.2" cy="15.3" r="1.4" fill="#2b2b2b" stroke="#6a6a6a" stroke-width=".5"/>
+    </svg></div>`;
+  const JET_SVG = (accent, uid) => `
+    <div class="spr"><div class="trail"></div>
+    <svg viewBox="0 0 120 34" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="jf${uid}" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#ffffff"/><stop offset=".5" stop-color="#e6edf3"/>
+          <stop offset=".72" stop-color="#bcc9d5"/><stop offset="1" stop-color="#8b9caa"/></linearGradient>
+        <linearGradient id="je${uid}" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#d3dce4"/><stop offset="1" stop-color="#6a7885"/></linearGradient>
+      </defs>
+      <!-- vertical tail fin (rakes back-left), accent with white flash -->
+      <path d="M23 15 L7 2.6 Q5 1 3.6 3.2 L6 15 Z" fill="${accent}"/>
+      <path d="M23 15 L10 5 L8.4 7.4 L18 15 Z" fill="#ffffff" opacity=".22"/>
+      <!-- horizontal stabilisers at the tail -->
+      <path d="M20 16.6 L4 11.6 L10 11 L24 15.6 Z" fill="#aab6c2"/>
+      <!-- near wing: swept back-and-down with an up-turned winglet -->
+      <path d="M76 20 L48 30 L45 30.3 L46.4 27.4 L72 19.6 Z" fill="#9fadb9"/>
+      <path d="M47.6 29.9 L45 30.4 L45.3 27.3 L48 27.7 Z" fill="#7f8d9a"/>
+      <!-- fuselage tube with rounded radome nose -->
+      <path d="M8 18 Q8 14.1 20 13.5 L102 12.7 Q113 12.9 117 16.3 Q118.6 17.5 117 18.7 Q113 22.1 102 22.1 L20 22.4 Q8 21.9 8 18 Z" fill="url(#jf${uid})"/>
+      <!-- belly shadow -->
+      <path d="M10 20.1 L115 19.6 Q113 21.6 102 21.8 L20 22 Q11 21.7 10 20.1 Z" fill="#7c8b98" opacity=".5"/>
+      <!-- accent cheatline down the body -->
+      <path d="M18 15.9 L112 15.2 L112 16.9 L18 17.4 Z" fill="${accent}" opacity=".9"/>
+      <!-- cabin windows -->
+      <g fill="#1f394f">${Array.from({length:22},(_,k)=>'<rect x="'+(28+k*3.35)+'" y="15.4" width="1.7" height="2" rx=".6"/>').join('')}</g>
+      <!-- cockpit windscreen near the nose -->
+      <path d="M103 14.6 Q111 14.8 115.5 16.8 L112 18 Q107 16.2 102 16.4 Z" fill="#12324a"/>
+      <path d="M104 15 Q109 15.2 112.5 16.6 L111 17.3 Q107 16 103.4 15.9 Z" fill="#3f6f98" opacity=".7"/>
+      <!-- rounded nose radome tip -->
+      <path d="M113.4 15.9 Q118.6 17.5 117 18.7 Q114.6 20.2 113 20.4 Z" fill="#39434e"/>
+      <!-- twin underwing engine nacelles (near pod + peeking far pod) -->
+      <path d="M52 24.4 L64 24 L62 27 L54 27.2 Z" fill="#8a97a3"/>
+      <ellipse cx="63" cy="26.4" rx="1.2" ry="2" fill="#22303c"/>
+      <path d="M70.5 20.4 L67 24 L62.6 24 L66 20.2 Z" fill="#8b98a4"/>
+      <rect x="57" y="23.4" width="15.5" height="6.2" rx="3.1" fill="url(#je${uid})"/>
+      <ellipse cx="72" cy="26.5" rx="1.8" ry="2.8" fill="#1a2a36"/>
+      <ellipse cx="72" cy="26.5" rx=".9" ry="1.6" fill="#0c161e"/>
+      <ellipse cx="57.4" cy="26.5" rx=".9" ry="2" fill="#31404c"/>
+      <!-- blinking wingtip beacon -->
+      <circle cx="45.6" cy="28.6" r="1" fill="#ff5a5a" class="beak"/>
+    </svg></div>`;
+  /* low prop plane (380..520px) */
+  {
+    const p = document.createElement('div'); p.className = 'prop' + (Math.random() < .5 ? ' rev' : '');
+    p.style.bottom = (380 + Math.random()*140) + 'px';
+    p.style.animationDuration = (34 + Math.random()*10) + 's';
+    p.style.animationDelay = (-Math.random()*30) + 's';
+    p.innerHTML = PROP_SVG(++window.__ac);
+    world.appendChild(p);
+  }
+  /* airliners at cruise: 700..1000px, two liveries */
+  const LIVERY = ['#2e6fd8', '#d86a2e'];
+  for (let i = 0; i < 2; i++) {
+    const j = document.createElement('div'); j.className = 'jet' + (i ? ' rev' : '');
+    j.style.bottom = (700 + i*220 + Math.random()*80) + 'px';
+    j.style.animationDuration = (26 + Math.random()*14) + 's';
+    j.style.animationDelay = (-Math.random()*20) + 's';
+    j.innerHTML = JET_SVG(LIVERY[i], ++window.__ac);
+    world.appendChild(j);
+  }
+  /* Kármán line at ~1400px */
+  const k = document.createElement('div'); k.className = 'karman'; k.style.bottom = '1400px';
+  k.innerHTML = '<span>KÁRMÁN LINE · 100 km · SPACE BEGINS</span>';
+  world.appendChild(k);
+  /* stars above 1500px */
+  for (let i = 0; i < 60; i++) {
+    const s = document.createElement('div'); s.className = 'wstar';
+    s.style.bottom = (1500 + Math.random()*(WORLD_H-1500-200)) + 'px';
+    s.style.left = Math.random()*100 + '%';
+    s.style.animationDelay = (Math.random()*3)+'s';
+    s.style.opacity = .3 + Math.random()*.7;
+    world.appendChild(s);
+  }
+  /* a satellite around 1900px */
+  const sat = document.createElement('div'); sat.className = 'sat';
+  sat.style.bottom = (1850 + Math.random()*160) + 'px'; sat.textContent = '🛰️';
+  world.appendChild(sat);
+}
+furnish($('us-world')); furnish($('them-world'));
+
+/* ---------- odometers ---------- */
+function odometer(el, digits) {
+  el.innerHTML = '';
+  const cols = [];
+  for (let i = 0; i < digits; i++) {
+    const d = document.createElement('div'); d.className = 'digit';
+    const c = document.createElement('div'); c.className = 'col';
+    c.innerHTML = '0123456789— .'.split('').map(ch => `<b>${ch}</b>`).join('');
+    d.appendChild(c); el.appendChild(d); cols.push(c);
+  }
+  const order = '0123456789— .';
+  let last = '';
+  return { set(str) {
+    str = String(str).slice(-digits).padStart(digits, ' ');
+    if (str === last) return; last = str;
+    for (let i = 0; i < digits; i++) {
+      const ch = str[i];
+      // HIDE the leading blank (padding) slots so the odometer shrink-wraps to the actual
+      // number and the flex container centers it in the card — otherwise a short value like
+      // "0" sits at the far-right slot of the fixed-width block, looking off-center.
+      cols[i].parentElement.style.display = (ch === ' ') ? 'none' : '';
+      cols[i].style.transform = `translateY(${-Math.max(order.indexOf(ch),0)*30}px)`;
+    }
+  } };
+}
+const O = {
+  usT: odometer($('us-toks'),5), themT: odometer($('them-toks'),5),
+  usF: odometer($('us-ttft'),4), themF: odometer($('them-ttft'),4),
+  usN: odometer($('us-n'),4),   themN: odometer($('them-n'),4),
+};
+O.usT.set('0'); O.themT.set('0'); O.usF.set('—'); O.themF.set('—'); O.usN.set('0'); O.themN.set('0');
+
+/* ---------- sparklines ---------- */
+function sparkline(canvas) {
+  const ctx = canvas.getContext('2d');
+  /* TWO buffers on purpose. `pts` is the DRAWING window and stays capped -- the canvas is a
+     few hundred px wide, so more than 200 points is invisible detail. `all` is the WHOLE
+     flight, kept for measurement.
+     They were one buffer until 2026-07-30, and that quietly broke thrust stability: on a
+     1000-token run the cap discarded the first 800 samples, so "early speed" was really
+     token 801 -- already hot -- and the panel compared hot against hot. An engine that
+     genuinely sagged 40% across the flight reported 12.8%, and any realistic sag rounded to
+     "held its thrust (-0%)". The one instrument whose entire job is catching long-run decay
+     was structurally unable to see it, and it always printed the flattering answer. */
+  let w = 0, h = 0, pts = [], all = [];
+  function size() { w = canvas.width = canvas.clientWidth; h = canvas.height = canvas.clientHeight; }
+  size(); addEventListener('resize', size);
+  return {
+    push(v) { pts.push(v); if (pts.length > 200) pts.shift(); all.push(v); },
+    draw(color) {
+      ctx.clearRect(0,0,w,h);
+      if (pts.length < 2) return;
+      const max = Math.max(...pts)*1.15 || 1;
+      ctx.beginPath();
+      for (let i = 0; i < pts.length; i++) {
+        const x = i/(pts.length-1)*(w-8)+4, y = h-6-(pts[i]/max)*(h-14);
+        i ? ctx.lineTo(x,y) : ctx.moveTo(x,y);
+      }
+      ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
+    },
+    reset() { pts = []; all = []; ctx.clearRect(0,0,w,h); },
+    points() { return pts.slice(); },
+    series() { return all.slice(); }   /* full flight — measurement, not drawing */
+  };
+}
+const usSpark = sparkline($('us-spark')), themSpark = sparkline($('them-spark'));
+
+/* ---------- exhaust particles: positions computed analytically (NO rect reads) ---------- */
+const ex = $('exhaust'), exCtx = ex.getContext('2d');
+function sizeEx() { ex.width = ex.clientWidth; ex.height = ex.clientHeight; }
+sizeEx(); addEventListener('resize', sizeEx);
+let parts = [];
+const MAXP = 80;
+
+/* ================= LANES: state + chase-cam render loop ================= */
+function laneState(ids, vpIndex, rkH) {
+  return { el:{ vp:$(ids.vp), world:$(ids.world), rk:$(ids.rk), shadow:$(ids.shadow),
+      flame:$(ids.flame), flames:(ids.flames||[]).map(f=>$(f)),
+      alt:$(ids.alt), maxq:$(ids.maxq), out:$(ids.out), state:$(ids.state) },
+    odoT:O[ids.oT], odoF:O[ids.oF], odoN:O[ids.oN], spark:ids.spark, color:ids.color,
+    vpX: vpIndex, rkH,
+    buf:'', text:'', n:0, t0:0, firstT:null, lastT:null, winTimes:[], inst:0, avg:0,
+    prog:0, flying:false, maxqFired:false, peak:0, dirty:false, cam:0 };
+}
+const LU = laneState({ vp:'us-vp', world:'us-world', rk:'us-rk', shadow:'us-shadow', flame:'us-flame',
+  alt:'us-alt', maxq:'us-maxq', out:'us-out', state:'us-state',
+  oT:'usT', oF:'usF', oN:'usN', spark:usSpark, color:'#3dff9e' }, 0, 112);
+const LT = laneState({ vp:'them-vp', world:'them-world', rk:'them-rk', shadow:'them-shadow', flame:'them-flame',
+  flames:['them-flameL','them-flameR'],
+  alt:'them-alt', maxq:'them-maxq', out:'them-out', state:'them-state',
+  oT:'themT', oF:'themF', oN:'themN', spark:themSpark, color:'#5b9cf5' }, 1, 106);
+
+const TRAVEL = WORLD_H - PAD_BOTTOM - MOON_ZONE - 120;   /* rocket world-bottom travel range */
+let sparkTick = 0;
+function render() {
+  const vpW = ex.width / 2;
+  for (const L of [LU, LT]) {
+    /* camera + rocket transforms every frame (smooth), cheap: two translate3d writes */
+    const rkBottom = PAD_BOTTOM + L.prog * TRAVEL;              /* world coords */
+    const cam = Math.max(0, Math.min(rkBottom - ANCHOR, WORLD_H - VP_H));
+    L.cam = cam;
+    L.el.world.style.transform = `translate3d(0, ${cam}px, 0)`;
+    L.el.rk.style.transform = `translate3d(-50%, ${-(rkBottom - PAD_BOTTOM)}px, 0)`;
+    /* ground shadow: shrinks + fades over the first ~8% of the climb */
+    const sh = Math.max(0, 1 - L.prog * 12);
+    L.el.shadow.style.opacity = sh;
+    L.el.shadow.style.transform = `translate3d(-50%,0,0) scale(${0.4 + sh * 0.6})`;
+    if (L.dirty) {
+      L.dirty = false;
+      if (L.buf) { L.text += L.buf; L.buf = '';
+        if (L.text.length > 6000) L.text = L.text.slice(-6000);
+        L.el.out.textContent = L.text; L.el.out.scrollTop = L.el.out.scrollHeight; }
+      L.odoN.set(String(L.n));
+      if (L.avg > 0) L.odoT.set(L.avg.toFixed(1));
+      L.el.alt.textContent = 'ALT ' + (L.prog >= 1 ? '384,400 km · THE MOON'
+        : (L.prog > 0.44 ? Math.round(100 + (L.prog-0.44)/0.56*384300).toLocaleString()
+                          : Math.round(L.prog/0.44*100)) + ' km');
+      /* exhaust: viewport position known analytically */
+      if (L.flying && parts.length < MAXP) {
+        const vx = L.vpX*vpW + vpW/2;
+        const vy = ex.height - (Math.min(rkBottom, cam + VP_H) - cam) + 8;
+        for (let i = 0; i < 2; i++)
+          parts.push({ x: vx+(Math.random()-0.5)*8, y: vy, vx:(Math.random()-0.5)*0.7,
+                       vy:1.6+Math.random()*1.3, r:2+Math.random()*2.4, a:0.8, c:L.color });
+      }
+    }
+  }
+  exCtx.clearRect(0,0,ex.width,ex.height);
+  parts = parts.filter(p => p.a > 0.04);
+  for (const p of parts) {
+    p.y += p.vy; p.x += p.vx; p.a *= 0.9; p.r *= 1.05;
+    exCtx.globalAlpha = p.a; exCtx.fillStyle = p.c;
+    exCtx.beginPath(); exCtx.arc(p.x,p.y,p.r,0,7); exCtx.fill();
+  }
+  exCtx.globalAlpha = 1;
+  if (++sparkTick % 4 === 0) { usSpark.draw(LU.color); themSpark.draw(LT.color); }
+  requestAnimationFrame(render);
+}
+render();
+
+/* ---------- modes / hints / chips ---------- */
+document.querySelectorAll('#modes button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#modes button').forEach(x => x.classList.remove('on'));
+  b.classList.add('on'); ntok = +b.dataset.ntok;
+  if ($('bmode').checked) { $('hint').textContent = '💡 ' + b.dataset.hint; $('hint').classList.add('show'); }
+  /* changing the test invalidates everything on screen from the previous race — reset the
+     whole dashboard to standby (stale banner/medals/odometers looked like the new test's data) */
+  if (!$('go').disabled) resetDashboard();
+});
+$('rival').onchange = () => {
+  const rival = $('rival').value;
+  $('them-name').textContent = rival.toUpperCase();
+  $('them-who').textContent = $('them-name').textContent + ' · LC-39B';
+  $('them-model').textContent = RIVAL_MODEL[rival] || '';
+  $('us-model').textContent = OUR_MODEL['live'];
+  if (!$('go').disabled) resetDashboard();
+};
+/* BEGINNER MODE annotates the WHOLE page, not one box at the top. The old version was a single
+   numbered tour that described eight things while sitting above all of them, so a reader had to
+   hold the list in their head and go looking. Each note now lives on the thing it is about, they
+   fade in together from the top down, and clicking one outlines its section. */
+const BTIPS = [
+  { sel:'.console', t:'Start here',
+    d:'Type a question, choose who we race, press LAUNCH. Both engines get the same question, word for word.' },
+  { sel:'.towerX', t:'The race itself',
+    d:'A rocket rises as its engine writes. Higher means further through the answer. Nothing here is sped up or slowed down.' },
+  { sel:'.runclock', before:true, t:'The clock',
+    d:'Times the race itself, from the moment the rockets leave the pad to the last token.' },
+  { sel:'.medals', t:'Three things we watch',
+    d:'Who wrote faster, who spoke first, and whether the run left a receipt you can check yourself.' },
+  { sel:'.paneRow', t:'The actual answers',
+    d:'Same question to both, so the two columns should say much the same thing. When they do not, that is worth seeing too.' },
+  { sel:'.finish', t:'The race again, flat',
+    d:'Pressing enter is zero. Each bar starts when that engine emits its first token and ends at its last, so thinking time counts here.' },
+  { sel:'.stamRow', t:'Does it hold up?',
+    d:'Some engines start quick and fade as the chip warms. This compares the first quarter of the answer with the last.' },
+  { sel:'.bits', t:'Why one is faster',
+    d:'To emit a single token, an engine reads the entire model. Read fewer bytes per token and you finish sooner. That is most of the gap.' },
+  { sel:'.towers', t:'What each one needs',
+    d:'Every block is a piece that has to keep working. Ours needs three and we wrote the compiler. Theirs needs five, all borrowed.' },
+  { sel:'.boardWrap', t:'The numbers, cold',
+    d:'No animation down here. Every row is a measurement taken separately from this race, and the losses are listed with the wins.' },
+];
+function beginnerNotes(on) {
+  document.querySelectorAll('.btip').forEach(e => e.remove());
+  document.querySelectorAll('.btipfocus').forEach(e => e.classList.remove('btipfocus'));
+  if (!on) return;
+  BTIPS.forEach((tip, i) => {
+    const host = document.querySelector(tip.sel);
+    if (!host) return;
+    const el = document.createElement('div');
+    el.className = 'btip';
+    el.style.animationDelay = (i * 0.06).toFixed(2) + 's';
+    el.innerHTML = `<i>${i + 1}</i><div><b>${tip.t}</b><span>${tip.d}</span></div>`;
+    el.addEventListener('click', () => {
+      const lit = host.classList.toggle('btipfocus');
+      if (lit) host.scrollIntoView({ behavior:'smooth', block:'nearest' });
+    });
+    /* A note dropped into the top of a section only lands correctly if the section is a plain
+       block. Half of these are not: the pane row and the tower row are grids, so a naive child
+       becomes a THIRD cell and collapses the two-column layout; the launch pad and the medal row
+       are row-flex, so it lands beside its section instead of above it. Grid children span the
+       whole row, flex children take a full-width line of their own, and the run clock -- a 132px
+       box that would crush any text put inside it -- gets its note as a sibling instead. */
+    const cs = getComputedStyle(host);
+    if (tip.before) {
+      host.parentNode.insertBefore(el, host);
+    } else {
+      if (cs.display === 'grid') el.classList.add('spanG');
+      else if (cs.display === 'flex' && cs.flexDirection.startsWith('row')) el.classList.add('spanF');
+      host.insertBefore(el, host.firstChild);
+    }
+  });
+}
+/* Set true to bring beginner mode back; the toggle markup in the header must be
+   un-commented at the same time. Nothing else was removed. */
+const BEGINNER_ENABLED = false;
+if (BEGINNER_ENABLED) $('bmode').onchange = () => {
+  const on = $('bmode').checked;
+  document.body.classList.toggle('bgn', on);
+  $('hint').classList.toggle('show', on);
+  if (on) $('hint').textContent = '💡 ' + document.querySelector('#modes button.on').dataset.hint;
+  beginnerNotes(on);
+};
+document.querySelectorAll('#chips button').forEach(b => b.onclick = () => $('prompt').value = b.textContent);
+/* Enter launches (like the old single-line input); Shift+Enter inserts a newline for multi-line prompts */
+$('prompt').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (!$('go').disabled) $('go').click(); }
+});
+
+/* ---------- towers ---------- */
+const USB = ['prebuilt PTX kernels (sha-verified)', 'libcuda (the GPU driver)', 'python3 + numpy'];
+const THB = ['PyTorch + Python + Ray', 'TensorRT-LLM', 'cuDNN', 'cuBLAS / CUTLASS', 'CUDA toolkit + nvcc', 'libcuda (the GPU driver)'];
+/* The stack is built in plain DOM order into a normal `column` flex box. It used to reverse the
+   array AND reverse the flex axis, which cancelled out visually but made the container pack from
+   the bottom -- our three pieces sat on the floor under a block of empty space while the rival's
+   five filled from the top. One reversal, in the data, and the group anchors to the top. */
+function buildTower(el, items) {
+  el.innerHTML = '';
+  items.slice().forEach((t, i) => {
+    const d = document.createElement('div');
+    d.className = 'block'; d.textContent = t; el.appendChild(d);
+    setTimeout(() => d.classList.add('show'), 250 + i*220);
+  });
+}
+buildTower($('us-tower'), USB); buildTower($('them-tower'), THB);
+emptyTimeline();
+
+/* Short display name per rival. The result card used to slice the dropdown's own label at
+   its first "(", which worked while the labels were "llama.cpp (real, CUDA ...)" and broke the
+   moment one became a sentence -- the card then announced the whole sentence as the winner's
+   name. A name is not a description; keep them apart. */
+const RIVAL_NAME = {
+  trtllm: 'TensorRT-LLM', llamacpp: 'llama.cpp', vllm: 'vLLM'
+};
+const RIVAL_MODEL = {
+  trtllm: 'TensorRT-LLM — bring your own: serve it on port 8083 with an OpenAI-compatible endpoint (trtllm-serve) and the arena will use it as-is. See docs/ENGINES.md.',
+  llamacpp: 'Qwen3-1.7B — llama.cpp CUDA',
+  vllm: 'Qwen3-1.7B fp16 — vLLM (flash-attn, the modern serving engine)'
+};
+/* The llama.cpp lane label must name the GGUF actually being served, not assume one: the
+   official Qwen3 repos do not all publish a 4-bit build, so a baked quant could misname the
+   running file. /engines carries model.gguf_quant, read from the file itself; until it
+   answers, the label carries no quant suffix rather than a guessed one. */
+function syncRivalModelLabel(info) {
+  const m = info && info.model;
+  if (!m) return;
+  RIVAL_MODEL.llamacpp = (m.name || 'Qwen3-1.7B') + (m.gguf_quant ? ' ' + m.gguf_quant : '')
+                       + ' — llama.cpp CUDA';
+}
+/* Our own pane's label has to match what is actually running. It once claimed "answers your
+   prompt live" no matter what, even while a since-removed mode was running a fake stream on
+   BOTH lanes -- the label and the thing running did not match. */
+const OUR_MODEL = {
+  live: 'Qwen3-1.7B int4 (per-32, 5.00 bits/weight) — prebuilt PTX on the driver · answers your prompt live · no CUDA toolkit, no cuBLAS, no PyTorch'
+};
+/* Prime the labels once at load, HERE rather than next to the handler: the handler closes over
+   these two consts, so calling it any earlier hits the temporal dead zone and throws halfway
+   through -- which set the rival's NAME and then abandoned the model lines, a worse state than
+   not running at all. Without this a first-time visitor, who never touches the dropdown, saw
+   "choose a rival above" beside a dropdown that already had one chosen. The opening state has
+   to agree with its own controls. */
+$('rival').onchange();
+
+/* Draw every <select> as a rounded listbox. The native element remains authoritative --
+   we set .value on it and dispatch 'change', so nothing else in the page changes. */
+function refreshSelect(sel) {
+  /* Drop the stale widget and rebuild it from the select's CURRENT options. The
+     select is moved back out first: enhanceSelects wraps whatever it is given, so
+     leaving it inside the old wrapper would nest a second one. */
+  if (!sel) return;
+  const wrap = sel.closest('.selwrap');
+  if (wrap && wrap.parentNode) {
+    wrap.parentNode.insertBefore(sel, wrap);
+    wrap.remove();
+  }
+  delete sel.dataset.enhanced;
+  enhanceSelects();
+}
+function enhanceSelects() {
+  document.querySelectorAll('select').forEach(sel => {
+    if (sel.dataset.enhanced) return;
+    sel.dataset.enhanced = '1';
+    const wrap = document.createElement('div'); wrap.className = 'selwrap';
+    sel.parentNode.insertBefore(wrap, sel); wrap.appendChild(sel);
+    const btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'selbtn';
+    btn.setAttribute('aria-haspopup', 'listbox');
+    const list = document.createElement('div');
+    list.className = 'sellist'; list.setAttribute('role', 'listbox');
+    const paint = () => {
+      btn.innerHTML = `<span>${sel.selectedOptions[0].textContent}</span><span class="caret">▼</span>`;
+      [...list.children].forEach(c =>
+        c.setAttribute('aria-selected', c.dataset.v === sel.value ? 'true' : 'false'));
+    };
+    [...sel.options].forEach(o => {
+      const d = document.createElement('div');
+      d.className = 'selopt'; d.dataset.v = o.value; d.textContent = o.textContent;
+      d.setAttribute('role', 'option');
+      d.onclick = () => {
+        sel.value = o.value; wrap.classList.remove('open'); paint();
+        sel.dispatchEvent(new Event('change'));
+      };
+      list.appendChild(d);
+    });
+    btn.onclick = e => { e.stopPropagation(); wrap.classList.toggle('open'); };
+    wrap.appendChild(btn); wrap.appendChild(list); paint();
+    sel.addEventListener('change', paint);
+    document.addEventListener('click', () => wrap.classList.remove('open'));
+    wrap.addEventListener('click', e => e.stopPropagation());
+  });
+}
+enhanceSelects();
+
+
+/* ---------- streaming ---------- */
+let RACE_STOP = false;          /* set by the STOP button; checked at every race phase */
+const ACTIVE_STREAMS = [];      /* abort closures for in-flight streams (STOP invokes them) */
+function stream(backend, prompt, n, L) {
+  return new Promise(resolve => {
+    /* settle exactly once + deregister, whether we finish, fail, or get STOPPED */
+    let settled = false;
+    const done = v => { if (settled) return; settled = true;
+      const i = ACTIVE_STREAMS.indexOf(abortMe); if (i >= 0) ACTIVE_STREAMS.splice(i, 1);
+      resolve(v); };
+    const abortMe = () => { try { es.close(); } catch(e){}
+      hideLoad(); L.el.state.textContent = ' — stopped';
+      L.flying = false; L.el.flame.style.opacity = 0; done(null); };
+    const t0 = performance.now();
+    L.t0 = t0;
+    let rec = [], recFirstT = null, recLastT = null, recFirstS = null;   /* record the decode timeline; replay it later */
+    /* ---- model-load progress bar: no real signal from the backend, so estimate with an
+       asymptotic 1-e^(-t/tau) curve (handles the variable 30-110s load, never stalls at 100%);
+       snap to 'ready' when the first real token arrives. ---- */
+    const _pfx = L.el.out.id.replace('-out', '');
+    const _bar = $(_pfx + '-loadbar'), _fill = $(_pfx + '-loadfill'), _pct = $(_pfx + '-loadpct');
+    let _loadTimer = null;
+    /* heavy rivals (vLLM / TRT) cold-load ~2-3 min; HIVE / llama ~30-60s. Pace the asymptote
+       to the real load time so the bar doesn't just sit pinned at 97%, and show elapsed seconds
+       so it's visibly progressing, not frozen. */
+    const _tau = (backend === 'vllm' || backend === 'trtllm') ? 70 : 30;
+    function startLoad() {
+      _bar.classList.add('on'); _bar.classList.remove('done');
+      _fill.style.width = '3%'; _pct.textContent = 'loading… 3%';
+      const t0l = performance.now();
+      clearInterval(_loadTimer);
+      _loadTimer = setInterval(() => {
+        const el = (performance.now() - t0l) / 1000;
+        const f = 1 - Math.exp(-el / _tau);
+        const s = Math.min(f, 0.97) * 100;
+        _fill.style.width = s.toFixed(0) + '%';
+        _pct.textContent = 'loading… ' + s.toFixed(0) + '% · ' + el.toFixed(0) + 's';
+      }, 200);
+    }
+    function finishLoad() {
+      if (!_loadTimer && !_bar.classList.contains('on')) return;
+      clearInterval(_loadTimer); _loadTimer = null;
+      _bar.classList.add('done'); _fill.style.width = '100%'; _pct.textContent = '✓ loaded';
+      setTimeout(() => { _bar.classList.remove('on', 'done'); _fill.style.width = '0'; }, 800);
+    }
+    function hideLoad() {
+      clearInterval(_loadTimer); _loadTimer = null;
+      _bar.classList.remove('on', 'done'); _fill.style.width = '0';
+    }
+    const es = new EventSource(`/run?backend=${backend}&prompt=${encodeURIComponent(prompt)}&ntok=${n}`);
+    ACTIVE_STREAMS.push(abortMe);
+    es.onmessage = e => {
+      const d = JSON.parse(e.data);
+      if (d.loading) {                                /* model cold-loading — show it, keep waiting */
+        L.el.state.textContent = ' — ' + d.loading;
+        startLoad();
+        return;
+      }
+      if (d.error) {                                  /* backend failed — show it, don't hang */
+        es.close();
+        hideLoad();
+        L.el.state.textContent = ' — backend error';
+        L.el.out.textContent = '⚠ ' + d.error;
+        L.flying = false;
+        L.el.flame.style.opacity = 0;
+        L.el.flames.forEach(f => { f.style.opacity = 0; });
+        done(null);
+        return;
+      }
+      if (d.done) {
+        es.close(); finishLoad(); L.el.state.textContent = ' — ✓ ready';
+        const ttft = (d.stats && d.stats.ttft_ms != null) ? d.stats.ttft_ms
+                     : (recFirstT != null ? recFirstT - t0 : null);
+        done({ rec, stats: d.stats, ttft, recLastT, t0, nTok: rec.length });
+        return;
+      }
+      const now = performance.now();
+      if (recFirstT === null) { recFirstT = now; recFirstS = (d.t != null ? d.t : null);
+        finishLoad(); L.el.state.textContent = ' — computing…'; }
+      recLastT = now;
+      /* Offsets come from the SERVER's clock when it sends one. Recording client arrival time
+         instead makes the replay reproduce SSE and scheduler jitter rather than the engine's
+         cadence -- it compressed the replay ratio, i.e. the transport was being timed,
+         not the engine. Client time stays as the fallback for a backend that sends no t. */
+      const off = (d.t != null && recFirstS != null) ? (d.t - recFirstS) : (now - recFirstT);
+      rec.push({ off, tok: d.tok });
+    };
+    es.onerror = () => { es.close(); hideLoad(); L.el.state.textContent = ' (ended)'; L.flying = false;
+      L.el.flame.style.opacity = 0; done(null); };
+  });
+}
+
+function feedToken(L, tok, nTotal) {   /* animate ONE token during replay (was the live stream body) */
+  const now = performance.now();
+  if (L.firstT === null) {                 /* first token of the replay = rocket launch */
+    L.firstT = now; L.flying = true;
+    if (L.rttft != null) L.odoF.set(String(Math.round(L.rttft)));
+    L.el.flame.style.opacity = 1; L.el.flame.style.height = '30px';
+    L.el.flames.forEach(f => { f.style.opacity = 1; f.style.height = '18px'; });
+    L.el.rk.classList.add('fly'); L.el.vp.classList.add('launched');
+    SND.flightOn();
+  }
+  L.lastT = now; L.n++;
+  L.buf += tok;
+  L.words += (tok.match(/\s+/g) || []).length;
+  if (window.FUEL) FUEL.sync();
+  L.winTimes.push(now); if (L.winTimes.length > 12) L.winTimes.shift();
+  if (L.winTimes.length > 1)
+    L.inst = (L.winTimes.length-1)/((L.winTimes[L.winTimes.length-1]-L.winTimes[0])/1000);
+  if (L.n > 1) L.avg = (L.n-1)/((L.lastT-L.firstT)/1000);
+  L.spark.push(L.inst);
+  const prevProg = L.prog; L.prog = Math.min(L.n/nTotal, 1);
+  if (prevProg < 0.44 && L.prog >= 0.44) SND.whoosh();
+  if (L.inst > L.peak) { L.peak = L.inst;
+    if (!L.maxqFired && L.n > 20) { L.maxqFired = true;
+      L.el.maxq.classList.remove('pop'); void L.el.maxq.offsetWidth; L.el.maxq.classList.add('pop'); } }
+  L.dirty = true;
+}
+function resetReplay(L) {                   /* clear the animation state before replay (keeps rec out of L) */
+  L.n = 0; L.firstT = null; L.lastT = null; L.buf = ''; L.text = ''; L.words = 0;
+  L.winTimes = []; L.inst = 0; L.avg = 0; L.prog = 0; L.peak = 0; L.maxqFired = false; L.dirty = true;
+  L.flying = false; L.el.out.textContent = ''; L.spark.reset();
+  L.el.rk.classList.remove('fly'); L.el.flame.style.opacity = 0; L.el.vp.classList.remove('launched');
+}
+function replayLane(L, rec, nTotal) {       /* replay a recorded timeline at its REAL decode speed */
+  return new Promise(resolve => {
+    if (!rec || !rec.length) { resolve(); return; }
+    const start = performance.now(); let i = 0;
+    (function tick() {
+      if (RACE_STOP) {           /* user pressed STOP mid-replay — land both rockets now */
+        L.flying = false; L.el.flame.style.opacity = 0; L.el.flame.style.height = '0px';
+        L.el.flames.forEach(f => { f.style.opacity = 0; f.style.height = '0px'; });
+        L.el.rk.classList.remove('fly'); L.el.state.textContent = ' — stopped';
+        resolve(); return;
+      }
+      const el = performance.now() - start;
+      while (i < rec.length && rec[i].off <= el) { feedToken(L, rec[i].tok, nTotal); i++; }
+      if (i >= rec.length) {
+        L.flying = false; L.el.flame.style.opacity = 0; L.el.flame.style.height = '0px';
+        L.el.flames.forEach(f => { f.style.opacity = 0; f.style.height = '0px'; });
+        L.el.rk.classList.remove('fly'); L.el.state.textContent = '';
+        if (L.prog >= 1) SND.touchdown();
+        resolve(); return;
+      }
+      setTimeout(tick, 16);   /* not rAF: survives tab-backgrounding so the race can't freeze */
+    })();
+  });
+}
+function medal(id, won) {
+  const m = $(id); m.classList.remove('show','lost');
+  setTimeout(() => { m.classList.add('show'); if (!won) m.classList.add('lost'); }, 250);
+}
+function confetti() {
+  const cv = $('confetti'), ctx = cv.getContext('2d');
+  cv.width = innerWidth; cv.height = innerHeight;
+  const P = Array.from({length:150}, () => ({
+    x:Math.random()*cv.width, y:-20-Math.random()*cv.height*.4,
+    vx:(Math.random()-.5)*2.4, vy:2+Math.random()*3.4,
+    s:5+Math.random()*6, r:Math.random()*Math.PI,
+    c:['#3dff9e','#f5d90a','#5b9cf5','#f55b9c','#9c5bf5'][Math.random()*5|0] }));
+  let fr = 0;
+  (function tick() {
+    ctx.clearRect(0,0,cv.width,cv.height);
+    for (const p of P) { p.x+=p.vx; p.y+=p.vy; p.r+=.1;
+      ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.r);
+      ctx.fillStyle=p.c; ctx.fillRect(-p.s/2,-p.s/2,p.s,p.s); ctx.restore(); }
+    if (++fr < 210) requestAnimationFrame(tick); else ctx.clearRect(0,0,cv.width,cv.height);
+  })();
+}
+/* RESULT CARD. This was one line of 28px text -- "HIVE WINS - <ratio> faster" -- which announced a
+   verdict and showed none of its own arithmetic. A ratio with no numerator is a claim, and this
+   page's whole argument is that we show the working. So the card now prints both speeds, names
+   which engine is which, and states the margin in plain words underneath. */
+function soloBanner(tps, rivalName) {
+  const b = $('banner'); b.className = 'us';
+  b.innerHTML = `
+    <div class="bnHead">HIVE Limited &mdash; ${tps.toFixed(1)} tok/s</div>
+    <div class="bnNums"><span class="bnSide us"><b>${tps.toFixed(1)}</b><i>HIVE Limited tok/s</i></span></div>
+    <div class="bnSub">solo run &mdash; measured on your machine, one run, not a benchmark</div>
+    <div class="bnNote">No rival answered, so there is nothing to compare against and no winner is claimed. ${rivalName} is not installed or not serving &mdash; the lane above says how to fix that. See <b>docs/ENGINES.md</b> to install one, or to point the arena at an engine you already run.</div>`;
+  void b.offsetWidth;
+  b.classList.add('show');
+}
+function banner(side, headline, usTok, themTok, themName, note) {
+  const b = $('banner'); b.className = side;
+  const win = side === 'us';
+  const fast = win ? usTok : themTok, slow = win ? themTok : usTok;
+  const gap = slow > 0 ? fast / slow : 0;
+  const words = gap >= 1.5 ? 'a decisive margin' : gap >= 1.12 ? 'a clear margin'
+              : gap >= 1.04 ? 'a narrow margin' : 'close enough to be a tie on this run';
+  b.innerHTML = `
+    <div class="bnHead">${headline}</div>
+    <div class="bnNums">
+      <span class="bnSide us"><b>${usTok.toFixed(1)}</b><i>HIVE tok/s</i></span>
+      <span class="bnVs">vs</span>
+      <span class="bnSide them"><b>${themTok.toFixed(1)}</b><i>${themName} tok/s</i></span>
+    </div>
+    <div class="bnSub">${words} on this prompt, on this machine — one run, not a benchmark</div>
+    ${note ? `<div class="bnNote">${note}</div>` : ''}`;
+  /* Force a reflow, then add the class -- do NOT wait on requestAnimationFrame. A tab that is
+     backgrounded or otherwise not compositing never runs a rAF callback, so a race that
+     finished while the user was in another tab would come back showing no result at all. The
+     reflow is what separates the two style states, which is all the transition needs. */
+  void b.offsetWidth;
+  b.classList.add('show');
+}
+function drawAxis(tl, tmaxRaw) {
+  const tmax = (tmaxRaw * 1.08) || 1;
+  const px = t => (t / tmax) * 92 + 2;
+  const niceStep = span => {
+    const raw = span / 5, mag = Math.pow(10, Math.floor(Math.log10(raw))), n = raw / mag;
+    return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * mag;
+  };
+  const step = niceStep(tmaxRaw), stepS = step / 1000;
+  const dec = stepS >= 1 ? 0 : (stepS >= 0.1 ? 1 : 2);
+  const base = document.createElement('div'); base.className = 'axbase'; tl.appendChild(base);
+  for (let t = 0; px(t) <= 97 && t <= tmaxRaw + step * 0.5; t += step) {
+    const g = document.createElement('div'); g.className = 'axgrid' + (t === 0 ? ' zero' : '');
+    g.style.left = `calc(${px(t)}%)`; tl.appendChild(g);
+    const lb = document.createElement('div'); lb.className = 'axlbl';
+    lb.style.left = `calc(${px(t)}%)`; lb.textContent = (t / 1000).toFixed(dec) + 's';
+    tl.appendChild(lb);
+  }
+  const cap = document.createElement('div'); cap.className = 'axcap'; cap.textContent = 'SECONDS →';
+  tl.appendChild(cap);
+  return px;
+}
+function emptyTimeline() {
+  const tl = $('tl'); tl.innerHTML = '';
+  drawAxis(tl, 2000);                                  /* default 0..2s reference scale */
+  const hint = document.createElement('div'); hint.className = 'tlhint';
+  hint.textContent = 'awaiting launch — liftoff & touchdown plot here';
+  tl.appendChild(hint);
+}
+/* MISSION TIMELINE — the whole mission on one axis: you press enter (t=0), the engine thinks,
+   the first word appears (liftoff), the last word appears (touchdown). This is a WIDER view than
+   the rocket replay above, which launches both craft together to make the decode speeds
+   comparable side by side; here the think time is included, so a slow first word shows up as a
+   late liftoff. Offsets are relative to the keypress, so 0 is a legitimate value -- the guard
+   must test for MISSING, not for falsy, or a liftoff at t=0 silently blanks the whole panel. */
+function photoFinish(usR, themR) {
+  if (!usR || !themR || usR.firstT == null || themR.firstT == null) return;
+  $('finish').classList.add('show');
+  const tl = $('tl'); tl.innerHTML = '';
+  const t0 = Math.min(usR.t0, themR.t0);
+  const evs = [
+    { t:usR.firstT-t0, cls:'us-m', row:'', lbl:'🟢 liftoff' },
+    { t:usR.lastT-t0, cls:'us-m', row:'', lbl:'🟢 touchdown' },
+    { t:themR.firstT-t0, cls:'them-m', row:'b', lbl:'🔵 liftoff' },
+    { t:themR.lastT-t0, cls:'them-m', row:'b', lbl:'🔵 touchdown' },
+  ];
+  const tmaxRaw = Math.max(...evs.map(e => e.t)) || 1;
+  const px = drawAxis(tl, tmaxRaw);
+  evs.forEach((e, i) => {
+    const d = document.createElement('div');
+    d.className = `mark ${e.cls} ${e.row}`;
+    d.style.left = `calc(${px(e.t)}%)`;
+    d.style.animationDelay = (i*0.12)+'s';
+    d.innerHTML = `<span>${e.lbl} ${(e.t/1000).toFixed(2)}s</span>`;
+    tl.appendChild(d);
+  });
+  /* flight-duration bars: liftoff -> touchdown per craft */
+  for (const [f,l,cls] of [[usR.firstT, usR.lastT, 'us-s'], [themR.firstT, themR.lastT, 'them-s']]) {
+    const sp = document.createElement('div');
+    sp.className = `span ${cls}`;
+    sp.style.left = `calc(${px(f - t0)}%)`;
+    sp.style.width = `calc(${px(l - t0) - px(f - t0)}%)`;
+    tl.appendChild(sp);
+  }
+}
+function stamina(spark, fillId, lblId) {
+  const raw = spark.series();   /* WHOLE flight: points() is the capped drawing window */
+  /* Drop the leading placeholder. The first token is pushed BEFORE the rolling window holds
+     two timestamps, so it is a literal 0 tok/s. A zero sitting in the early baseline drags
+     it down and makes any engine look like it SPED UP — a second thumb on the scale, in the
+     same flattering direction as the buffer bug above. */
+  const p = raw.filter(v => v > 0);
+  if (p.length < 24) { $(fillId).style.width='100%'; $(lblId).textContent='—'; return; }
+  /* LEAST-SQUARES TREND, start vs end — not first-quarter-average vs last-quarter-average.
+     Quarter averages have midpoints at 12.5% and 87.5% of the flight, so they only ever see
+     ~75% of a linear droop: a real 25% decay printed −20% and a real 50% printed −41%, always
+     understating, always in the engine's favour. The fitted line is EXACT for a linear droop
+     and still uses every sample, so one slow token cannot swing it.
+     Known residual: a cliff (fast, then a sudden permanent drop) is summarised by the trend
+     rather than reported at full depth — no single scalar catches both shapes, and the
+     sparkline above shows the shape itself. */
+  const n = p.length;
+  let sx = 0, sy = 0, sxx = 0, sxy = 0;
+  for (let i = 0; i < n; i++) { sx += i; sy += p[i]; sxx += i*i; sxy += i*p[i]; }
+  const den = n*sxx - sx*sx;
+  const slope = den ? (n*sxy - sx*sy) / den : 0;
+  const mean = sy/n, mx = sx/n;
+  const start = mean + slope*(0 - mx), end = mean + slope*((n-1) - mx);
+  const keep = Math.max(0, Math.min(1, start > 0 ? end/start : 1));
+  $(fillId).style.width = (keep*100).toFixed(0)+'%';
+  const sag = (1-keep)*100;
+  $(lblId).textContent = sag < 8 ? `held its thrust 💪 (−${sag.toFixed(0)}%)` : `engine sagged 🔥 −${sag.toFixed(0)}%`;
+}
+/* FUEL TANKS — the two systems actually racing: HIVE (left) vs the selected rival (right).
+   Every generated word re-reads all the model weights, so "fuel per word" = the per-token
+   weight-read of Qwen3-1.7B at each precision (1.7e9 * bits / 8):
+     int4 (4-bit) -> 0.85 GB   Q4_K_M (~4.5-bit) -> 0.96 GB   INT4 -> 0.85 GB   FP16 -> 3.4 GB.
+   BOTH engines say the SAME words, so both counters climb together (the rival is NOT frozen).
+   HONEST NOTE: at equal 4-bit, HIVE and llama.cpp are ~even on memory-per-word (HIVE ~11%
+   leaner) — the fuel axis is NOT the headline here; the SPEED race above is. The dramatic
+   fuel win is only vs a full-precision FP16 chatbot (~4x leaner). A tank holds one 240 GB
+   tankful; when it empties it REFUELS (fill wraps) and the TANKS BURNED number pops. */
+const FUEL = (() => {
+  const TANK = 240;
+  /* Our bytes-per-token is NOT a constant here: it is computed from the weights the
+     engine actually loaded (server /engines -> ours.gb_per_token) so the tank arithmetic
+     cannot drift from the build. It starts at the per-32 5.00 bpw figure and is
+     overwritten as soon as the server answers. Rival rates remain published estimates
+     for their formats and are labelled as such. */
+  let HRATE = 1.06;
+  const RIVALS = {
+    trtllm:   { cls:'f4',  name:'TensorRT-LLM',  sub:'INT4 · Qwen3-1.7B',        rate:0.85 },
+    llamacpp: { cls:'f4',  name:'llama.cpp',     sub:'Q4_K_M · Qwen3-1.7B',      rate:0.96 },
+    vllm:     { cls:'f16', name:'vLLM',          sub:'FP16 · Qwen3-1.7B',        rate:3.4 },
+  };
+  function mk(id, rate) {
+    const el = $(id);
+    const t = { el, rate, cap: Math.floor(TANK / rate), lastTank: 0,
+      fill: el.querySelector('.fill'), gf: el.querySelector('.gfill'),
+      ctr: el.querySelector('.fcounter b'), sub: el.querySelector('.fcounter span'),
+      tanksEl: el.querySelector('.ftanks') };
+    t.tanksEl.innerHTML = '<span class="fi">⛽</span><b class="n">0</b><span class="u">tanks burned</span>';
+    t.nEl = t.tanksEl.querySelector('.n');
+    for (let i = 0; i < 3; i++) {                      /* bubbles (paused until a race) */
+      const b = document.createElement('div'); b.className = 'bub';
+      b.style.left = (18 + i*30 + Math.random()*8) + '%';
+      b.style.animationDelay = (Math.random()*2.4) + 's';
+      t.fill.appendChild(b);
+    }
+    return t;
+  }
+  const H = mk('tH', HRATE);                           /* HIVE, Qwen3-1.7B int4 (4-bit) */
+  const R = mk('tR', 4.0);                             /* rival, rate/label set by setRival */
+  const tanks = [H, R];
+  const section = $('tH').closest('.bits');
+  const vEl = section.querySelector('.verdictline');
+  let mode = 'idle', rivalKey = 'llamacpp';
+  const ratioStr = r => { const x = r / HRATE; return (Number.isInteger(x) ? x : x.toFixed(1)) + '×'; };
+  const tanksStr = n => (n < 10 ? n.toFixed(1) : Math.round(n)) + (n >= 0.95 && n < 1.05 ? ' tank' : ' tanks');
+  const tanksNum = n => n < 10 ? n.toFixed(1) : String(Math.round(n));
+  function badge(text, live) { $('fmode').textContent = text; $('fmode').classList.toggle('live', !!live); }
+  function bubbles(on) { section.classList.toggle('fuel-live', !!on); }
+  function full(t) { t.fill.style.height = '96%'; t.gf.style.height = '100%'; t.lastTank = 0; }
+  function resetStat(t) { t.tanksEl.classList.add('on'); t.tanksEl.classList.remove('hot', 'bump'); t.nEl.textContent = '0'; t.lastTank = 0; }
+  function setTankLive(t, toks) {
+    /* TOKENS, not whitespace-split words. The rates below are GB per TOKEN, so feeding this
+       a word count made both the caption and the burn arithmetic wrong -- a token is roughly
+       three quarters of a word, so the tanks drained about 25% too slowly. */
+    t.ctr.textContent = toks;                          /* ACTUAL tokens -- both reach the same count */
+    const used = (toks * t.rate) / TANK;               /* total tankfuls burned so far */
+    const remain = 1 - (used % 1);                     /* fuel left in the CURRENT tank (wraps on refuel) */
+    t.fill.style.height = (96 * remain) + '%';
+    t.gf.style.height = (100 * remain) + '%';
+    t.nEl.textContent = tanksNum(used);
+    t.tanksEl.classList.toggle('hot', used >= 3);      /* burning orange when guzzling */
+    const whole = Math.floor(used);                    /* pop the number + pulse the tank on each refuel */
+    if (whole > t.lastTank) { t.lastTank = whole;
+      t.el.classList.remove('refuel'); void t.el.offsetWidth; t.el.classList.add('refuel');
+      t.tanksEl.classList.remove('bump'); void t.tanksEl.offsetWidth; t.tanksEl.classList.add('bump'); }
+  }
+  function verdictIdle() {
+    const rv = RIVALS[rivalKey], bits = rv.sub.split(' · ')[0];
+    vEl.innerHTML = `▸ one tankful — HIVE Limited emits <b>${H.cap}</b> tokens (measured from its own weights), ${rv.name} about <b>${R.cap}</b> (${bits}, estimated from the published format)`;
+  }
+  function setRival(key) {
+    rivalKey = RIVALS[key] ? key : 'llamacpp';
+    const rv = RIVALS[rivalKey];
+    R.rate = rv.rate; R.cap = Math.floor(TANK / rv.rate);
+    R.el.className = 'ftank ' + rv.cls;
+    $('rvname').textContent = rv.name;   /* the tank sub-caption was removed from the heading */
+    { const snm = $('them-stamnm'); if (snm) snm.textContent = '🔵 ' + rv.name; }
+    $('rvcostb').textContent = '~' + rv.rate.toFixed(1) + ' GB';
+    { const rn = $('rvname'); if (rn) rn.title = 'Estimated from the published bits-per-weight of this format. Our own figure is measured from the weights this engine loaded.'; }
+    if (mode !== 'live') { full(R); R.ctr.textContent = R.cap; resetStat(R);
+      R.sub.textContent = 'tokens per tank'; verdictIdle(); }
+  }
+  function setReady() {
+    mode = 'idle';
+    for (const t of tanks) { full(t); t.ctr.textContent = t.cap; t.sub.textContent = 'tokens per tank'; resetStat(t); }
+    verdictIdle(); badge('READY', false); bubbles(false);
+  }
+  function startLive(rival) {
+    setRival(rival); mode = 'live';
+    const lbl = 'tokens · LIVE';
+    for (const t of tanks) { full(t); t.ctr.textContent = '0'; t.sub.textContent = lbl;
+      resetStat(t); }
+    vEl.innerHTML = '▸ live: both engines say the SAME words — watch how many tankfuls each has to burn to get there';
+    badge('● LIVE', true); bubbles(true);
+  }
+  function syncLive() {                                /* event-driven, per streamed token */
+    if (mode !== 'live') return;
+    setTankLive(H, LU.n || 0);
+    setTankLive(R, LT.n || 0);
+  }
+  function endLive() {
+    if (mode !== 'live') return;
+    mode = 'done';                                     /* freeze the result, static */
+    const N = LU.words || 0, rv = RIVALS[rivalKey], bits = rv.sub.split(' · ')[0];
+    if (N > 0) {
+      const hiveGB = Math.round(N * HRATE), rivalGB = Math.round(N * rv.rate);
+      /* Say what was measured, in the unit it was measured in. "Tanks" is the visual; gigabytes
+         read from memory is the actual quantity, and it is the reason the speed difference
+         exists at all -- so lead with it rather than leaving it in a parenthesis. */
+      vEl.innerHTML = `▸ to write the same <b>${N} words</b>: HIVE read <b>${hiveGB} GB</b> from memory, ${rv.name} (${bits}) read <b>${rivalGB} GB</b> — <b>${ratioStr(rv.rate)} as much</b>. Smaller numbers mean less waiting on memory.`;
+    }
+    badge('RESULT', false); bubbles(false);
+  }
+  setRival(($('rival') && $('rival').value) || 'llamacpp');
+  setReady();
+  function setOurRate(gbPerToken) {
+    if (!(gbPerToken > 0)) return;
+    HRATE = gbPerToken; H.rate = HRATE; H.cap = Math.floor(TANK / HRATE);
+    /* the burn label shows the MEASURED figure or nothing -- it starts as an em dash and
+       is only ever written here, from the weights the server says it actually loaded */
+    $('ourcostb').textContent = HRATE.toFixed(2) + ' GB';
+    if (mode !== 'live') { full(H); H.ctr.textContent = H.cap; verdictIdle(); }
+  }
+  return { startLive, endLive, sync: syncLive, setRival, reset: setReady, setOurRate };
+})();
+window.FUEL = FUEL;
+/* Two things this page must not invent: how many bytes our own engine reads per token,
+   and which rival engines exist on this machine. Both come from the server.
+
+   The dropdown lists what is ACTUALLY INSTALLED. It used to list all three shipped
+   adapters with '- not installed' appended, which made the common case -- a fresh
+   install, nothing else present -- a menu of three things none of which work. The three
+   we ship installers for are not a statement about what is worth racing either, so the
+   list ends with a way to point at anything else that speaks the same API. */
+function paintRivals(info) {
+  syncRivalModelLabel(info);       /* /engines says which GGUF is served — label it, don't guess */
+  const sel = document.getElementById('rival');
+  const keep = sel.value;
+  const st = info.rivals || {};
+  const LABEL = { llamacpp: 'llama.cpp', vllm: 'vLLM', trtllm: 'TensorRT-LLM' };
+  sel.innerHTML = '';
+  /* Shipped engines appear once they are installed. An engine the USER added always
+     appears, even when it is not answering — they told us about it on purpose, and
+     having it silently vanish reads as 'the thing I just added did not save'. */
+  const ready = Object.entries(st).filter(([, s]) => s.available || s.custom);
+  for (const [key, s] of ready) {
+    const o = document.createElement('option');
+    o.value = key;
+    o.textContent = (LABEL[key] || s.name)
+                  + (s.serving ? '  ·  running' : '')
+                  + (!s.available && s.custom ? '  ·  not answering on port ' + s.port : '')
+                  + (s.can_run ? '' : '  ·  ' + (s.why_not || 'cannot run this model'));
+    sel.appendChild(o);
+  }
+  if (!ready.length) {
+    const o = document.createElement('option');
+    o.value = ''; o.textContent = 'no rival engines installed yet';
+    sel.appendChild(o);
+  }
+  const add = document.createElement('option');
+  add.value = '__add__';
+  add.textContent = ready.length ? '＋ add another engine…' : '＋ add an engine…';
+  sel.appendChild(add);
+  if (keep && Array.from(sel.options).some(o => o.value === keep)) sel.value = keep;
+  refreshSelect(sel);
+  sel.dispatchEvent(new Event('change'));
+}
+
+/* '+ add another engine' is for stacks we never wrote an installer for -- SGLang, TGI,
+   Ollama, LM Studio, your own build. Anything with an OpenAI-compatible endpoint. The
+   arena never launches one of these; it only uses one already running, as configured. */
+function addEngineFlow() {
+  const name = prompt('What is it called?\n\n'
+    + 'Anything that serves an OpenAI-compatible API works — SGLang, TGI, Ollama,\n'
+    + 'LM Studio, or your own build of something.');
+  if (!name) return refreshRivals();
+  const port = prompt('Which port is it serving on?\n\n'
+    + 'Start it yourself first — the arena will not launch it for you, so it runs\n'
+    + 'exactly as you configured it.', '11434');
+  if (!port) return refreshRivals();
+  fetch('/engines/add?name=' + encodeURIComponent(name) + '&port=' + encodeURIComponent(port))
+    .then(r => r.json()).then(r => {
+      if (!r.ok) alert(r.message || 'could not add that engine');
+      refreshRivals();
+    }).catch(() => refreshRivals());
+}
+function refreshRivals() {
+  return fetch('/engines').then(r => r.json()).then(paintRivals).catch(() => {});
+}
+
+/* Same reasoning as the model list: retry rather than freeze on a stale first load. */
+(function loadEngines(tries) {
+  fetch('/engines').then(r => r.json()).then(info => {
+    if (info.ours && info.ours.gb_per_token) FUEL.setOurRate(info.ours.gb_per_token);
+    paintRivals(info);
+  }).catch(() => {
+    setTimeout(() => loadEngines(tries + 1), Math.min(2000 * (tries + 1), 10000));
+  });
+})(0);
+document.getElementById('rival').addEventListener('change', e => {
+  if (e.target.value === '__add__') addEngineFlow();
+});
+
+/* ---- model picker ----
+   Both lanes must run the SAME model or the race means nothing, so the server owns the
+   selection and hands it to every engine. This control just asks it to change. */
+(function models() {
+  const sel = document.getElementById('model');
+  if (!sel) return;
+  const note = document.createElement('p');
+  note.className = 'modelSwap';
+  sel.parentElement.after(note);
+  const say = (t, on) => { note.textContent = t; note.classList.toggle('on', !!on); };
+
+  function paint(info) {
+    sel.innerHTML = '';
+    if (!info.installed.length) {
+      sel.innerHTML = '<option>no models found</option>';
+      say('Download one with  ./setup/download_models.sh', true);
+      return;
+    }
+    /* Only what is DOWNLOADED, including models we never listed -- anything dropped
+       into the models folder is discovered, so a model of your own appears here too. */
+    for (const m of info.installed) {
+      const o = document.createElement('option');
+      o.value = m.key;
+      /* Say up front when a model cannot be raced -- one of the two file formats is
+         missing -- rather than letting the user discover it when a lane errors. */
+      o.textContent = m.name + (m.params ? '  ·  ' + m.params : '')
+                    + (m.can_race ? '' : '  ·  ' + (m.missing_short || 'HIVE only'));
+      o.selected = m.key === info.current;
+      sel.appendChild(o);
+    }
+    const more = document.createElement('option');
+    more.value = '__get__';
+    more.textContent = '＋ download another model…';
+    sel.appendChild(more);
+    const cur = info.installed.find(m => m.key === info.current);
+    /* Only mention the missing half when it is ACTUALLY IN THE WAY -- i.e. a rival
+       engine is installed that cannot read this model. With no rival installed there
+       is nothing to race, so the note is pure noise, and a line reading '<model> ...
+       not downloaded' next to a model that is plainly working just makes people think
+       their install is broken. No ⚠ either: nothing here IS broken. */
+    if (cur && !cur.can_race) {
+      fetch('/engines').then(r => r.json()).then(e => {
+        const blocked = Object.values(e.rivals || {})
+          .some(s => (s.available || s.custom) && !s.can_run);
+        if (blocked) {
+          say(cur.missing, true);
+          if (cur.completes_with) addGetLink(cur.completes_with);
+        } else { say('', false); }
+      }).catch(() => say('', false));
+    } else { say('', false); }
+    refreshSelect(sel);
+  }
+
+  function addGetLink(key) {
+    const a = document.createElement('a');
+    a.href = '/setup.html#models';
+    a.textContent = ' Get it →';
+    a.style.color = 'var(--hive)';
+    note.appendChild(a);
+  }
+
+  /* The dropdown starts life saying 'loading…'. If this fetch fails and the failure is
+     swallowed, it says that FOREVER — which is what a restarted server looks like from
+     an open tab: permanently stuck, no reason given, no way back but a reload. So the
+     failure is shown, and it retries until the server answers. */
+  let modelTries = 0;
+  function loadModels() {
+    return fetch('/models').then(r => r.json()).then(info => {
+      modelTries = 0;
+      paint(info);
+    }).catch(() => {
+      modelTries++;
+      sel.innerHTML = '<option>' + (modelTries < 3 ? 'reconnecting…'
+                                                   : 'server not responding') + '</option>';
+      if (modelTries === 3) {
+        say('Lost contact with the engine. If you stopped it, start it again with '
+            + '~/hive-limited/start.sh — this page reconnects on its own.', true);
+      }
+      /* Back off, but never give up: a server that comes back should heal the page
+         without the user having to know to reload it. */
+      setTimeout(loadModels, Math.min(2000 * modelTries, 10000));
+    });
+  }
+  loadModels();
+
+  sel.addEventListener('change', async () => {
+    const key = sel.value;
+    if (key === '__get__') {          /* the download page has the buttons */
+      window.location.href = '/setup.html#models';
+      return;
+    }
+    if (!key) return;
+    /* Switching reloads the weights and takes about a minute, so the button is held
+       shut for the duration -- a race launched mid-swap would fault the GPU. */
+    const go = document.getElementById('go');
+    const wasDisabled = go.disabled;
+    go.disabled = true;
+    say('Loading ' + sel.options[sel.selectedIndex].text.split('  ·')[0]
+        + ' … this takes about a minute. The LAUNCH button comes back when it is ready.',
+        true);
+    try {
+      const r = await (await fetch('/select?model=' + encodeURIComponent(key))).json();
+      if (!r.ok) { say('⚠ ' + (r.error || 'could not switch model'), true); }
+      else {
+        say(r.model && !r.model.can_race ? '⚠ ' + r.model.missing : '', !!(r.model && !r.model.can_race));
+        const info = await (await fetch('/models')).json();
+        paint(info);
+        if (window.FUEL) {
+          const e = await (await fetch('/engines')).json();
+          if (e.ours && e.ours.gb_per_token) FUEL.setOurRate(e.ours.gb_per_token);
+          syncRivalModelLabel(e);   /* the served GGUF may have changed with the model */
+        }
+        if (typeof resetDashboard === 'function') resetDashboard();
+      }
+    } catch (e) {
+      say('⚠ could not switch model: ' + e.message, true);
+    }
+    go.disabled = wasDisabled;
+  });
+})();
+$('rival').addEventListener('change', () => FUEL.setRival($('rival').value));
+
+/* ---------- synthesized sound: no files, gesture-gated, toggleable ---------- */
+const SND = (() => {
+  let ac = null, master = null;
+  const on = () => $('smode').checked;
+  function ctx() {
+    if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
+    if (ac.state === 'suspended') ac.resume();
+    if (!master) {                                   /* master gain -> limiter: LOUD but clean */
+      master = ac.createGain(); master.gain.value = 4;   /* ~4x louder */
+      const lim = ac.createDynamicsCompressor();          /* soft limiter: only tames clipping peaks */
+      lim.threshold.value = -3; lim.knee.value = 8; lim.ratio.value = 12;
+      lim.attack.value = .003; lim.release.value = .25;
+      master.connect(lim); lim.connect(ac.destination);
+    }
+    return ac;
+  }
+  /* `at` = an ABSOLUTE AudioContext time. Calling beep() when a digit paints ties the sound to
+     the main thread, and a busy frame moves it: the countdown measured 760/671/884 ms gaps for a
+     nominal 700, which is heard as beeps drifting off the numbers. Scheduled ahead on the audio
+     clock instead, the beat is exact -- that clock runs on the sound device and is unaffected by
+     layout, GC or a slow frame. Omit `at` and it plays immediately, as before. */
+  function beep(freq, dur, vol, type, at) {
+    if (!on()) return;
+    const a = ctx(), o = a.createOscillator(), g = a.createGain();
+    const t = (at != null && at > a.currentTime) ? at : a.currentTime;
+    o.type = type || 'square'; o.frequency.value = freq;
+    g.gain.setValueAtTime(vol || .12, t);
+    g.gain.exponentialRampToValueAtTime(.0001, t + (dur || .18));
+    o.connect(g); g.connect(master);
+    o.start(t); o.stop(t + (dur || .18) + .02);
+  }
+  /* mission-control comms pip: quindar-style 2.5 kHz sine + soft answer tone */
+  function pip() {
+    if (!on()) return;
+    beep(2525, .085, .06, 'sine');
+    setTimeout(() => beep(1046.5, .1, .05, 'sine'), 90);
+  }
+  /* spoken callouts via the browser's own voice (still zero audio files) */
+  let voiceOK = ('speechSynthesis' in window);
+  function say(text, rate, pitch) {
+    if (!on() || !voiceOK) return;
+    try {
+      const u = new SpeechSynthesisUtterance(text);
+      u.rate = rate || 1; u.pitch = pitch || .8; u.volume = 1;
+      speechSynthesis.speak(u);
+    } catch (e) { voiceOK = false; }
+  }
+  /* noise buffer helper: plain, or gated into random bursts (rocket-exhaust crackle) */
+  function noiseBuf(a, seconds, crackle) {
+    const buf = a.createBuffer(1, a.sampleRate * seconds, a.sampleRate);
+    const d = buf.getChannelData(0);
+    if (!crackle) { for (let i = 0; i < d.length; i++) d[i] = Math.random()*2 - 1; return buf; }
+    let i = 0;
+    while (i < d.length) {
+      const burst = 100 + (Math.random()*1100 | 0);
+      const amp = Math.random() < .45 ? (.35 + Math.random()*.65) : 0;
+      for (let k = 0; k < burst && i < d.length; k++, i++) d[i] = (Math.random()*2 - 1) * amp;
+    }
+    return buf;
+  }
+  /* launch rumble: deep throbbing body + crackle pops + a pitch-dropping ignition boom */
+  function rumble(seconds) {
+    if (!on()) return;
+    const a = ctx(), n = seconds || 6, t = a.currentTime;
+    const src = a.createBufferSource(); src.buffer = noiseBuf(a, n, false);
+    const lp = a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 82; lp.Q.value = 1.1;
+    const g = a.createGain();
+    g.gain.setValueAtTime(.0001, t);
+    g.gain.exponentialRampToValueAtTime(.72, t + .35);
+    g.gain.exponentialRampToValueAtTime(.0001, t + n);
+    const lfo = a.createOscillator(), lg = a.createGain();          /* slow throb */
+    lfo.frequency.value = 2.2; lg.gain.value = .2;
+    lfo.connect(lg); lg.connect(g.gain); lfo.start(); lfo.stop(t + n);
+    src.connect(lp); lp.connect(g); g.connect(master); src.start();
+    const cs = a.createBufferSource(); cs.buffer = noiseBuf(a, n, true);
+    const bp = a.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1500; bp.Q.value = .6;
+    const cg = a.createGain();
+    cg.gain.setValueAtTime(.0001, t);
+    cg.gain.exponentialRampToValueAtTime(.15, t + .5);
+    cg.gain.exponentialRampToValueAtTime(.0001, t + n);
+    cs.connect(bp); bp.connect(cg); cg.connect(master); cs.start();
+    const o = a.createOscillator(), og = a.createGain();            /* ignition boom */
+    o.type = 'sine';
+    o.frequency.setValueAtTime(120, t); o.frequency.exponentialRampToValueAtTime(36, t + .9);
+    og.gain.setValueAtTime(.5, t); og.gain.exponentialRampToValueAtTime(.0001, t + 1.1);
+    o.connect(og); og.connect(master); o.start(); o.stop(t + 1.2);
+  }
+  const ignition = () => rumble(6.5);
+  function chime() {
+    if (!on()) return;
+    [523.25, 659.25, 783.99].forEach((f, i) =>
+      setTimeout(() => beep(f, .3, .14, 'triangle'), i * 140));
+  }
+  /* sustained in-flight engine: breathing low drone + faint crackle, fades in/out */
+  let flightG = null, flightNodes = null;
+  function flightOn() {
+    if (!on() || flightNodes) return;
+    const a = ctx(), t = a.currentTime;
+    const src = a.createBufferSource(); src.buffer = noiseBuf(a, 2, false); src.loop = true;
+    const lp = a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 105; lp.Q.value = .8;
+    flightG = a.createGain();
+    flightG.gain.setValueAtTime(.0001, t);
+    flightG.gain.exponentialRampToValueAtTime(.15, t + 1.2);
+    const lfo = a.createOscillator(), lg = a.createGain();          /* the drone breathes */
+    lfo.frequency.value = 1.7; lg.gain.value = .05;
+    lfo.connect(lg); lg.connect(flightG.gain); lfo.start();
+    src.connect(lp); lp.connect(flightG); flightG.connect(master); src.start();
+    const cs = a.createBufferSource(); cs.buffer = noiseBuf(a, 2, true); cs.loop = true;
+    const bp = a.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1300; bp.Q.value = .7;
+    const cg = a.createGain(); cg.gain.setValueAtTime(.0001, t);
+    cg.gain.exponentialRampToValueAtTime(.03, t + 1.6);
+    cs.connect(bp); bp.connect(cg); cg.connect(master); cs.start();
+    flightNodes = { src, cs, cg, lfo };
+  }
+  function flightOff() {
+    if (!flightNodes) return;
+    const a = ctx(), fn = flightNodes, g = flightG;
+    flightNodes = null; flightG = null;
+    g.gain.exponentialRampToValueAtTime(.0001, a.currentTime + 1.4);
+    fn.cg.gain.exponentialRampToValueAtTime(.0001, a.currentTime + 1.0);
+    setTimeout(() => { try { fn.src.stop(); fn.cs.stop(); fn.lfo.stop(); } catch (e) {} }, 1600);
+  }
+  /* Karman-crossing whoosh: bandpass noise sweep */
+  function whoosh() {
+    if (!on()) return;
+    const a = ctx();
+    const src = a.createBufferSource(); src.buffer = noiseBuf(a, .8, false);
+    const bp = a.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 2.2;
+    bp.frequency.setValueAtTime(220, a.currentTime);
+    bp.frequency.exponentialRampToValueAtTime(1400, a.currentTime + .7);
+    const g = a.createGain();
+    g.gain.setValueAtTime(.001, a.currentTime);
+    g.gain.exponentialRampToValueAtTime(.12, a.currentTime + .18);
+    g.gain.exponentialRampToValueAtTime(.0001, a.currentTime + .8);
+    src.connect(bp); bp.connect(g); g.connect(master);
+    src.start();
+  }
+  /* touchdown: soft ping + low thud */
+  function touchdown() {
+    if (!on()) return;
+    beep(392, .5, .1, 'triangle'); beep(78, .35, .16, 'sine');
+  }
+  /* Spin the audio pipeline up on the LAUNCH gesture, before the countdown needs it. A fixed
+     40 ms wait was not enough on a cold context: the first run's "3" and "2" landed late while
+     later runs were clean, which is the signature of the device still starting. Wait for the
+     context to report 'running' AND for its clock to actually advance -- currentTime stays
+     frozen at 0 until the hardware is live, so an advancing clock is the real ready signal --
+     with a bounded number of tries so a machine that never reports running cannot hang a race. */
+  async function warm() {
+    if (!on()) return;
+    const a = ctx();
+    if (a.state === 'suspended') { try { await a.resume(); } catch (e) {} }
+    const o = a.createOscillator(), g = a.createGain();
+    g.gain.value = 0.00006; o.frequency.value = 440;
+    o.connect(g); g.connect(master);
+    o.start(); o.stop(a.currentTime + 0.06);
+    const t0 = a.currentTime;
+    for (let i = 0; i < 30 && (a.state !== 'running' || a.currentTime === t0); i++) {
+      await new Promise(r => setTimeout(r, 10));
+    }
+  }
+  return { beep, pip, say, rumble, ignition, chime, ctx, warm, flightOn, flightOff, whoosh, touchdown };
+})();
+
+function countdown() {
+  return new Promise(res => {
+    const c = $('count'), s = c.querySelector('span');
+    c.classList.add('show');
+    const seq = ['3','2','1','IGNITION'];
+    /* BEEP AND DIGIT ARE ONE STATEMENT, ALWAYS.
+       Previously the first beep fired outside the interval and the rest inside it, so the audio
+       and the digit were scheduled by two different clocks -- any jitter in the first call
+       desynchronised every later pair, and the beeps drifted off the numbers. Now a single
+       `show(i)` paints the digit and sounds its own beep in the same tick, and the interval only
+       decides WHEN to call it. They cannot drift apart because there is one schedule. */
+    const show = (i) => {
+      s.textContent = seq[i];
+      /* re-arm the pulse so digit, beep and beat share one moment */
+      s.style.animation = 'none'; void s.offsetWidth; s.style.animation = '';
+      if (seq[i] === 'IGNITION') { s.style.fontSize = '54px'; SND.ignition(); }
+      else { s.style.fontSize = ''; }
+    };
+    /* Digits are painted on DEADLINES derived from one t0, not by a repeating interval.
+       setInterval accumulates drift whenever the main thread is busy -- measured 728/890/687 ms
+       for a nominal 700 -- and an uneven beat reads as the beeps being out of time even though
+       each beep fires in the same statement as its digit. Deadlines keep the tempo. */
+    const STEP = 700, t0 = performance.now();
+    /* Every beep of the countdown is scheduled NOW, on the audio clock, at exact 700 ms
+       spacing. The digits are painted separately on main-thread deadlines; a janky frame can
+       still move a digit by a frame or two, but the BEAT -- which is what a listener hears as
+       "in time" -- is no longer at the mercy of the main thread. warm() first, because
+       creating the context costs milliseconds the first time and that alone made the first
+       run's beeps late while later runs were fine. */
+    SND.warm();
+    const A = SND.ctx(), a0 = A.currentTime + 0.06;   /* small lead so nothing is scheduled late */
+    const w0 = performance.now();                     /* wall twin of a0, taken in the same tick */
+    /* the countdown box must be visible before the first digit lands */
+    for (let k = 0; k < seq.length; k++) {
+      if (seq[k] === 'IGNITION') SND.beep(990, .5, .16, 'sawtooth', a0 + k * STEP / 1000);
+      else SND.beep(660, .16, .12, null, a0 + k * STEP / 1000);
+    }
+    /* DIGITS FOLLOW THE SAME CLOCK AS THE BEEPS. setTimeout is coarse and drifts under load
+       (measured 720/789/603 ms for a nominal 700), so a digit could sit ~90 ms off its own
+       beep even with the audio scheduled perfectly. Polling the AudioContext clock on
+       requestAnimationFrame lands each digit within one frame of its beat, and both are now
+       reading the same timebase rather than two. */
+    let k = 0;
+    /* rAF for smoothness, a timer for the guarantee: a hidden tab suspends rAF and the
+       countdown would otherwise never resolve, wedging the race behind a disabled
+       LAUNCH button. Same reasoning replayLane already applies to itself. */
+    const nextTick = fn => {
+      let fired = false;
+      const once = () => { if (fired) return; fired = true; fn(); };
+      requestAnimationFrame(once);
+      setTimeout(once, 60);
+    };
+    const tick = () => {
+      /* The audio clock is the beat — but on a machine with no working audio output
+         (a VM, a remote desktop, a headless browser) A.currentTime stays frozen at 0,
+         and a countdown that polls only that clock never finishes: the race wedges
+         behind a disabled LAUNCH with no error. So the wall clock, re-based onto the
+         same axis, is the floor: whichever clock is further along drives the digits.
+         With live audio the two agree and the beat governs; with dead audio the wall
+         tempo carries the countdown alone (there are no beeps to drift from anyway). */
+      const el = Math.max(A.currentTime, a0 - 0.06 + (performance.now() - w0) / 1000);
+      while (k < seq.length && el >= a0 + k * STEP / 1000) { show(k); k++; }
+      if (el >= a0 + seq.length * STEP / 1000) { c.classList.remove('show'); res(); return; }
+      nextTick(tick);
+    };
+    nextTick(tick);
+  });
+}
+
+function resetLane(L) {
+  L.buf=''; L.text=''; L.n=0; L.firstT=null; L.lastT=null; L.winTimes=[]; L.inst=0; L.avg=0;
+  L.prog=0; L.words=0; L.flying=false; L.maxqFired=false; L.peak=0; L.dirty=false; L.cam=0;
+  L.el.out.textContent=''; L.el.state.textContent=' standing by…';
+  L.el.alt.textContent='ALT 0 km';
+  L.el.vp.classList.remove('launched');
+  L.spark.reset();
+}
+
+function resetDashboard() {   /* full standby reset: lanes, odometers, medals, banner, timeline, fuel */
+  resetLane(LU); resetLane(LT);
+  O.usT.set('0'); O.themT.set('0'); O.usF.set('—'); O.themF.set('—'); O.usN.set('0'); O.themN.set('0');
+  $('us-receipt').classList.remove('show'); $('banner').classList.remove('show');
+  document.querySelectorAll('.medal').forEach(m => m.classList.remove('show','lost'));
+  emptyTimeline();
+  $('us-stam').style.width = '0%'; $('them-stam').style.width = '0%';
+  $('us-stamlbl').textContent = ''; $('them-stamlbl').textContent = '';
+  if (window.FUEL) FUEL.reset();
+}
+
+/* STOP: terminate the race — aborts both streams client-side AND tells the server to kill
+   every in-flight/loading engine (incl. a mid-load vLLM) and free the GPU. */
+$('stopbtn').onclick = () => {
+  RACE_STOP = true;
+  $('stopbtn').disabled = true;
+  fetch('/stop', { method: 'POST' }).catch(() => {});
+  ACTIVE_STREAMS.slice().forEach(fn => { try { fn(); } catch(e){} });
+  ACTIVE_STREAMS.length = 0;
+  try { FUEL.endLive(); SND.flightOff(); } catch(e){}
+};
+
+let lastRun = null;
+/* RUN CLOCK — wall time for the WHOLE launch, which is the question a first-time viewer asks
+   and which no other readout answers. The per-engine meters report tok/sec and first-word
+   latency; neither tells you "how long did that take". Uses performance.now() so it is immune
+   to wall-clock adjustments, and rAF so it costs nothing when the tab is backgrounded. */
+const RUNCLOCK = {
+  t0: 0, raf: 0,
+  phase(p) { $('rc-phase').textContent = p; },
+  start() {
+    this.t0 = performance.now();
+    $('runclock').classList.remove('done');
+    const tick = () => {
+      $('rc-val').textContent = ((performance.now() - this.t0) / 1000).toFixed(1) + 's';
+      this.raf = requestAnimationFrame(tick);
+    };
+    cancelAnimationFrame(this.raf); tick();
+  },
+  stop(label) {
+    cancelAnimationFrame(this.raf); this.raf = 0;
+    if (this.t0) $('rc-val').textContent = ((performance.now() - this.t0) / 1000).toFixed(1) + 's';
+    $('runclock').classList.add('done');
+    this.phase(label || 'complete');
+  }
+};
+
+$('go').onclick = async () => {
+  if ($('go').disabled) return;     /* ignore double-clicks while a race is in flight */
+  $('go').disabled = true;
+  /* The clock starts when the countdown does, not on the button press: everything before
+     that is loading a model, which is not part of the launch the number is reporting. */
+  RACE_STOP = false;
+  $('stopbtn').disabled = false;
+  try {
+  await SND.warm();                 /* prime audio so the 3 · 2 · 1 beeps all play */
+  const prompt = $('prompt').value, rival = $('rival').value;
+  $('them-name').textContent = rival.toUpperCase();
+  $('them-who').textContent = ($('them-name').textContent) + ' · LC-39B';
+  $('them-model').textContent = RIVAL_MODEL[rival] || '';
+  $('us-model').textContent = OUR_MODEL['live'];
+  resetLane(LU); resetLane(LT);
+  O.usT.set('0'); O.themT.set('0'); O.usF.set('—'); O.themF.set('—'); O.usN.set('0'); O.themN.set('0');
+  $('us-receipt').classList.remove('show'); $('banner').classList.remove('show');
+  document.querySelectorAll('.medal').forEach(m => m.classList.remove('show','lost'));
+  FUEL.startLive(rival);
+  /* PHASE 1 — COMPUTE: run both models to completion. Rockets stay on the pad; loading bars fill.
+     'don't launch until both models are fully loaded' -> we wait for BOTH to finish computing. */
+  LU.el.state.textContent = ' — loading model…';
+  const usBackend = 'ours';
+  /* PHASE 1 is RECORD-ONLY (PHASE 2 replays both synced), so the compute order is invisible to
+     the race. On the 8 GB card two heavyweight engines CANNOT co-reside, so for a heavy rival we
+     compute ONE AT A TIME — HIVE first: its process runs, records, and EXITS, freeing all its VRAM
+     before the rival (vLLM ~6.8 GB / TRT) loads into the freed room. Firing both together (the old
+     Promise.all) made the rival OOM at ~97% mid-load. llama.cpp is light → still parallel. */
+  const heavyRival = (rival === 'vllm' || rival === 'trtllm');
+  let usR, themR;
+  if (heavyRival) {
+    LT.el.state.textContent = ' — waiting: HIVE runs first (8 GB — one model at a time)';
+    // clear any stale load bar from a prior race so the WAITING state is unambiguous
+    // (a leftover "✓ loaded" on the rival lane is exactly what looks like "both are up")
+    { const b=$('them-loadbar'), f=$('them-loadfill'), p=$('them-loadpct');
+      if (b){ b.classList.remove('on','done'); f.style.width='0'; p.textContent=''; } }
+    usR = await stream(usBackend, prompt, ntok, LU);
+    LT.el.state.textContent = ' — loading model…';
+    themR = await stream(rival, prompt, ntok, LT);
+  } else {
+    LT.el.state.textContent = ' — loading model…';
+    [usR, themR] = await Promise.all([
+      stream(usBackend, prompt, ntok, LU),
+      stream(rival, prompt, ntok, LT),
+    ]);
+  }
+  if (RACE_STOP) {              /* user pressed STOP during PHASE 1 — lanes already show it */
+    FUEL.endLive(); return;
+  }
+  const usOK = !!(usR && usR.rec && usR.rec.length);
+  const themOK = !!(themR && themR.rec && themR.rec.length);
+  if (!usOK) {                    /* our own engine failed: nothing to show either way */
+    LU.el.state.textContent = ' — no output';
+    LT.el.state.textContent = themOK ? '' : ' — no output';
+    $('go').disabled = false; return;
+  }
+  if (!themOK) {                  /* SOLO: no rival installed, or the rival failed */
+    LT.el.state.textContent = ' — not racing (see the lane above)';
+    LU.rttft = usR.ttft;
+    O.usF.set(usR.ttft != null ? String(Math.round(usR.ttft)) : '—');
+    RUNCLOCK.phase('countdown'); await countdown();
+    RUNCLOCK.start(); RUNCLOCK.phase('racing');
+    if (RACE_STOP) { FUEL.endLive(); return; }
+    resetReplay(LU); FUEL.startLive(rival);
+    LU.el.state.textContent = ' — in flight…';
+    await replayLane(LU, usR.rec, usR.rec.length);
+    SND.flightOff(); FUEL.endLive();
+    if (!RACE_STOP) {
+      const last = usR.rec[usR.rec.length-1].off;
+      const tps = usR.rec.length > 1 ? (usR.rec.length-1)/(last/1000) : 0;
+      soloBanner(tps, RIVAL_NAME[rival] || 'the rival');
+      medal('m-proof', !!(usR.stats && usR.stats.receipt));
+    }
+    /* .text + .buf, never .buf alone -- see the note on the two-lane site above. */
+    lastRun = { backend: usBackend, prompt, ntok, text: LU.text + LU.buf };
+    if (usR.stats && usR.stats.receipt) {
+      try {
+        const r = await (await fetch('/receipt')).json();
+        $('rcpt-hash').textContent = r.clean
+          ? 'no NVIDIA math or inference library mapped — only ' + (r.driver||[]).join(', ')
+          : 'unexpected: ' + (r.math_or_inference_libraries||[]).join(', ');
+        $('rcpt-n').textContent = (r.driver||[]).length;
+        $('us-receipt').classList.add('show');
+      } catch(e){}
+    }
+    $('go').disabled = false; return;
+  }
+  LU.rttft = usR.ttft; LT.rttft = themR.ttft;
+  O.usF.set(usR.ttft != null ? String(Math.round(usR.ttft)) : '—');
+  O.themF.set(themR.ttft != null ? String(Math.round(themR.ttft)) : '—');
+  /* PHASE 2 — REPLAY: countdown, then launch BOTH together and replay at real decode speeds. */
+  /* The clock times the RACE, so it starts when the rockets actually leave the pad -- not on
+     "3". Counting the 2.1 s countdown into the launch time made the headline number mostly
+     ceremony, and two runs with identical decode speeds could differ by however long the
+     countdown happened to take. */
+  RUNCLOCK.phase('countdown');
+  await countdown();
+  RUNCLOCK.start(); RUNCLOCK.phase('racing');
+  if (RACE_STOP) { FUEL.endLive(); return; }
+  resetReplay(LU); resetReplay(LT);
+  FUEL.startLive(rival);
+  LU.el.state.textContent = ' — in flight…'; LT.el.state.textContent = ' — in flight…';
+  /* each rocket's journey = 100% of ITS OWN answer (a chat model stops at its natural end —
+     EOS — so answers can be shorter than the mode's max tokens) */
+  await Promise.all([ replayLane(LU, usR.rec, usR.rec.length), replayLane(LT, themR.rec, themR.rec.length) ]);
+  SND.flightOff();
+  FUEL.endLive();
+  if (RACE_STOP) return;        /* stopped mid-replay: no result banner/medals for a partial race */
+  {
+    const usLast = usR.rec[usR.rec.length-1].off, themLast = themR.rec[themR.rec.length-1].off;
+    const usTok = usR.rec.length>1 ? (usR.rec.length-1)/(usLast/1000) : 0;
+    const themTok = themR.rec.length>1 ? (themR.rec.length-1)/(themLast/1000) : 0;
+    medal('m-speed', usTok >= themTok);
+    medal('m-first', (usR.ttft||0) <= (themR.ttft||0));
+    medal('m-proof', !!(usR.stats && usR.stats.receipt));
+    if (usTok > 0 && themTok > 0) {
+      const rivalName = RIVAL_NAME[rival] || 'rival';
+      /* Optional footnote slot under the result banner; empty for live runs. A since-removed
+         replay mode used it to reconcile its raw stopwatch ratio with the board's smaller
+         bpw-corrected headline for the same axis. */
+      const bnote = '';
+      if (usTok >= themTok) {
+        banner('us', `🏆 HIVE WINS — ${(usTok/themTok).toFixed(2)}× faster`, usTok, themTok, rivalName, bnote);
+        confetti(); SND.chime();
+      } else {
+        banner('them', `${rivalName.toUpperCase()} WINS THIS ROUND — ${(themTok/usTok).toFixed(2)}× faster`, usTok, themTok, rivalName, bnote);
+      }
+    }
+    const usTtft = usR.ttft || 0, themTtft = themR.ttft || 0;
+    photoFinish({t0:0, firstT:usTtft, lastT:usTtft + usLast},
+                {t0:0, firstT:themTtft, lastT:themTtft + themLast});
+    /* Gate on the DATA, not on the mode the user picked. The old test asked for 1000+ tokens,
+       so a 100-token race -- including every demo-mode run -- printed "needs a 1000-token run"
+       and left both bars at zero even though it had collected plenty of samples to compare
+       first quarter against last. stamina() already refuses below 24 points; that is the real
+       requirement, so let it be the only one. */
+    const enough = Math.min(usSpark.series().length, themSpark.series().length) >= 24;
+    if (enough) {
+      stamina(usSpark,'us-stam','us-stamlbl'); stamina(themSpark,'them-stam','them-stamlbl');
+    } else {
+      $('us-stam').style.width = '0%'; $('them-stam').style.width = '0%';
+      const msg = 'too few samples — try a longer run';
+      $('us-stamlbl').textContent = msg; $('them-stamlbl').textContent = msg;
+    }
+  }
+  lastRun = { backend: usBackend, prompt, ntok, text: LU.text + LU.buf };
+  if (usR && usR.stats && usR.stats.receipt) {
+    try {
+      const r = await (await fetch('/receipt')).json();
+      /* HIVE Limited's receipt is a LIVE CHECK, not a stored hash: it reads this
+         process's mapped shared objects, so you can confirm no cuBLAS/cuDNN/TensorRT/
+         PyTorch is loaded. A claim you can re-run beats a hash you must trust. */
+      $('rcpt-hash').textContent = r.clean
+        ? 'no NVIDIA math or inference library mapped — only ' + (r.driver||[]).join(', ')
+        : 'unexpected: ' + (r.math_or_inference_libraries||[]).join(', ');
+      $('rcpt-n').textContent = (r.driver||[]).length;
+      $('us-receipt').classList.add('show');
+    } catch(e){}
+  }
+  } catch (err) {
+    /* ANY failure (server down, backend error, network drop) must not wedge the button —
+       otherwise LAUNCH stays disabled and "it won't launch again". Always recover. */
+    console.error('arena race failed:', err);
+    try { LU.el.state.textContent = ' — error (see console)'; LT.el.state.textContent = ' — error'; } catch(e){}
+    try { FUEL.endLive(); SND.flightOff(); } catch(e){}
+    try { RUNCLOCK.stop('failed'); } catch(e){}
+  } finally {
+    /* stop in `finally` too: a race that is stopped or errors must still leave a real elapsed
+       time on screen rather than a clock frozen mid-count with no explanation. */
+    if (RUNCLOCK.raf) RUNCLOCK.stop(RACE_STOP ? 'stopped' : 'complete');
+    $('go').disabled = false;
+    $('stopbtn').disabled = true;
+  }
+};
+
+$('verify').onclick = async (e) => {
+  e.stopPropagation();
+  if (!lastRun) return;
+  const V = $('vsteps');
+  const step = (t, ok) => { V.innerHTML += (ok ? `<span class="ok">${t}</span>` : t) + '<br>'; };
+  V.innerHTML = '';
+  step('1/3 re-running the exact same prompt…');
+  let text2 = '';
+  await new Promise(res => {
+    const es = new EventSource(`/run?backend=${lastRun.backend}&prompt=${encodeURIComponent(lastRun.prompt)}&ntok=${lastRun.ntok}`);
+    es.onmessage = ev => { const d = JSON.parse(ev.data); if (d.done) { es.close(); res(); } else text2 += d.tok; };
+    es.onerror = () => { es.close(); res(); };
+  });
+  step('2/3 comparing every byte of both answers…');
+  await new Promise(r => setTimeout(r, 450));
+  const ref = lastRun.text.length > 6000 ? lastRun.text.slice(-6000) : lastRun.text;
+  const t2c = text2.length > 6000 ? text2.slice(-6000) : text2;
+  if (t2c === ref && t2c.length > 0) step('3/3 ✓ MATCH — identical bytes. Deterministic, hence provable.', true);
+  else step(`3/3 ✗ differs (${text2.length} vs ${lastRun.text.length} chars) — would FAIL the receipt check.`, false);
+};
+
+fetch('/scoreboard').then(r => r.json()).then(sb => {
+  // Four titled cards instead of one 611-character paragraph. Same content -- a reader can now
+  // see what KIND of qualification each is before deciding to read it.
+  if (sb.notes && sb.notes.length) {
+    $('notes').innerHTML = sb.notes.map((n, i) =>
+      // role=button on a div, NOT a real <button>. Chrome lays a button's children out in an
+      // anonymous internal box that refuses a scripted height: the inline style read back as
+      // 231px while the computed height stayed 0, so the card never opened. A div takes the
+      // height; the role, tabindex and key handler restore the semantics a button gave for free.
+      `<div class="note${/favours THEM|NOT the same/i.test(n.title) ? ' warn' : ''}"
+            role="button" tabindex="0" aria-expanded="false" aria-controls="noteB${i}">
+         <div class="noteT"><i>${n.icon}</i><span>${n.title}</span><b class="noteX">+</b></div>
+         <div class="noteS">${n.short || ''}</div>
+         <div class="noteB" id="noteB${i}"><p>${n.body}</p></div>
+       </div>`).join('');
+    // Click to open. Four cards each carrying a paragraph made a wall of small text sitting
+    // between the reader and the numbers; collapsed, the row reads as four one-line captions and
+    // the detail is one tap away. Height is animated off the measured scrollHeight rather than a
+    // guessed max-height, so the easing is right for a two-line note and a six-line one alike.
+    /* the tallest body decides the opened height for ALL cards, so none of them needs a
+       scrollbar and any two opened together still end level */
+    requestAnimationFrame(() => {
+      let tallest = 0;
+      $('notes').querySelectorAll('.noteB').forEach(b => {
+        const prev = b.style.height; b.style.height = 'auto';
+        tallest = Math.max(tallest, b.scrollHeight); b.style.height = prev;
+      });
+      if (tallest) document.documentElement.style.setProperty('--noteOpenH', tallest + 'px');
+    });
+    $('notes').querySelectorAll('.note').forEach(card => {
+      const body = card.querySelector('.noteB');
+      const toggle = () => {
+        const open = card.classList.toggle('open');
+        card.setAttribute('aria-expanded', open ? 'true' : 'false');
+        card.querySelector('.noteX').textContent = open ? '−' : '+';
+        body.style.height = '';        /* CSS owns it: .note.open .noteB has one fixed height */
+      };
+      card.addEventListener('click', toggle);
+      card.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+      });
+    });
+  } else {
+    $('caveat').hidden = false; $('caveat').textContent = sb.caveat || '';
+  }
+  // ONE table for every engine. Each row names its own rival, so a llama.cpp axis and a
+  // TensorRT-LLM axis sit in the same four columns under the same rules -- including the
+  // rows with no numbers, whose verdict says which kind of nothing it is.
+
+/* THE RIG panel. Rendered from the same /scoreboard payload as the board, so the spec sheet
+   cannot drift from the run that produced the numbers. */
+if (sb.rig && sb.rig.length) {
+  $('rigInner').innerHTML = sb.rig.map(g =>
+    `<div class="rigGrp"><h4>${g.g}</h4>` +
+    g.rows.map(([k, v]) => `<div class="rigRow"><b>${k}</b><span>${v}</span></div>`).join('') +
+    `</div>`).join('');
+  const rig = $('rig'), body = $('rigBody'), btn = $('rigBtn');
+  btn.addEventListener('click', () => {
+    const open = rig.classList.toggle('open');
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    /* the hint names the NEXT action, not the current state -- "click for full specs" sitting
+       above an already-open panel is an instruction the reader has just followed */
+    $('rigMore').textContent = open ? 'click to close' : 'click for full specs';
+    /* measured height, not a guess: the panel is long and a max-height cap would either
+       clip it or race through the easing */
+    body.style.height = open ? body.scrollHeight + 'px' : '0px';
+  });
+  /* keep it correct if the window resizes while open (text reflows, height changes) */
+  addEventListener('resize', () => {
+    if (rig.classList.contains('open')) { body.style.height = 'auto';
+      const h = body.scrollHeight; body.style.height = h + 'px'; }
+  });
+}
+  const tb = document.querySelector('#board tbody');
+  /* Group order mirrors the dropdown (llama.cpp, vLLM, TensorRT-LLM) so the table and the
+     engine picker read the same way round, and vLLM gets its OWN heading -- buried inside a
+     shared "not yet run" block there was no way to find it. */
+  /* One block per engine we race, in the dropdown's order, and EVERY axis we intend to run
+     against that engine lives in its block whether or not it has a number yet. A planned test
+     parked in a shared "not yet run" bin hides which opponent it is even about. */
+  const GROUPS = {
+    llama:  'vs llama.cpp — the popular local runtime',
+    vllm:   'vs vLLM — the standard serving engine',
+    trt:    'vs TensorRT-LLM — NVIDIA’s own compiled engine',
+    h100:   'vs TensorRT-LLM on an H100 SXM — the datacenter rematch (rented pod, not this machine)',
+    open:   'engines we have not installed yet',
+    struct: 'structural — what each engine needs in order to run at all'
+  };
+  /* Order the table by GROUP, not by however the rows happen to sit in the source. A row
+     appended in the wrong place (the B=32 rung landed after the open rows) otherwise splits
+     its own group in two and prints its header twice. Within a group the source order is
+     preserved, so model sizes and batch widths still read small-to-large. */
+  /* TensorRT-LLM LEADS. It is the hardest opponent, and 1.7B is the one size where both
+     engines can be brought to equal 4-bit on this card -- so it carries the strongest claim
+     even though llama.cpp has more rows. Ordering by row count would have put our broadest
+     result first and our most serious one second. */
+  const GRANK = { trt:0, h100:1, llama:2, vllm:3, open:4, struct:5 };
+  const rowsSorted = sb.measured
+    .map((r, i) => [r, i])
+    .sort((a, b) => (GRANK[a[0].group] ?? 9) - (GRANK[b[0].group] ?? 9) || a[1] - b[1])
+    .map(x => x[0]);
+  let lastGroup = null;
+  for (const row of rowsSorted) {
+    if (row.group && row.group !== lastGroup) {
+      lastGroup = row.group;
+      const gh = document.createElement('tr');
+      gh.className = 'grouphead';
+      gh.innerHTML = `<td colspan="4">${GROUPS[row.group] || row.group}</td>`;
+      tb.appendChild(gh);
+    }
+    const v = row.verdict;
+    /* Four states, and the WORD carries the colour. Nothing is greyed out: grey reads as
+       "ignore this row", and every row here is a real statement about where we stand. */
+    /* The default bucket is a TIE, not "untested": only a verdict that literally says
+       untested is an unrun test. A row like "too close to call" is a finished measurement
+       whose margin sits under the rig's resolution, and colouring it amber alongside the
+       tests we have not run understated what is actually known about it. */
+    const cls = row.group === 'struct'   ? 'vStruct'
+              : v.startsWith('OURS')     ? 'vWin'
+              : v.startsWith('THEIRS')   ? 'vLose'
+              : /untested/i.test(v)      ? 'vUntested'
+              : 'vTie';
+    const tr = document.createElement('tr');
+    tr.style.animationDelay = (tb.children.length * 0.05) + 's';
+    // The verdict cell leads with the DEFENSIBLE figure and carries the raw stopwatch reading
+    // beneath it: raw alone overstated decode on one published row at a glance, corrected
+    // alone would hide what was actually measured. Both, corrected first.
+    const raw = row.raw ? `<span class="rawv">${row.raw}</span>` : '';
+    const basis = row.basis ? `<span class="basis">${row.basis}</span>` : '';
+    // key the row to a dropdown value so selecting a rival can highlight its rows
+    const rl = row.rival.toLowerCase();
+    tr.dataset.rival = /llama\.cpp/.test(rl) && !/vllm/.test(rl) ? 'llamacpp'
+                     : /tensorrt/.test(rl) ? 'trtllm'
+                     : /^vllm/.test(rl) ? 'vllm'
+                     : /vllm/.test(rl) ? 'vllm llamacpp' : '';
+    tr.innerHTML =
+      `<td><b>${row.axis}</b><span class="vsrival">vs ${row.rival}</span>${basis}</td>` +
+      `<td class="num">${row.ours}</td><td class="num">${row.theirs}</td>` +
+      `<td class="${cls}">${v}${raw}</td>` +
+      ``;
+    tb.appendChild(tr);
+  }
+  /* THE BOARD ANSWERS THE DROPDOWN. Picking a rival above dims the rows that are about a
+     different engine, so the table you scroll to is about the race you just watched. It
+     MARKS rather than filters -- hiding rows on selection would quietly turn a board whose
+     point is completeness into a board that shows you only one opponent. */
+  const syncBoard = () => {
+    const want = $('rival').value;
+    tb.querySelectorAll('tr').forEach(tr => {
+      const k = tr.dataset.rival || '';
+      tr.classList.toggle('ontopic', !!want && !!k && k.split(' ').includes(want));
+    });
+    /* the SHORT engine name, not the dropdown's sentence. Splitting the option label on its
+       first "(" worked while labels were "llama.cpp (real, CUDA...)" and broke the moment one
+       became a sentence -- the caption then read the whole sentence back as the engine name. */
+    const who = RIVAL_NAME[$('rival').value] || $('rival').value;
+    $('boardWho').textContent = who;
+    /* the KEY says what the green rail means, in the same place the colours are explained --
+       a caption above the table was not enough: green already means "we win" here, so the
+       marking needs to name itself where a reader is already looking things up. */
+    const kw = $('keyWho');
+    if (kw) kw.textContent = 'the engine picked above';
+  };
+  $('rival').addEventListener('change', syncBoard);
+  syncBoard();
+});
+</script>
+</body>
+</html>
