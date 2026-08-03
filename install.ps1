@@ -218,12 +218,13 @@ set "PORT=%~2"
 if "%PORT%"=="" set "PORT=8080"
 echo.
 echo   Starting HIVE Limited...
-echo   Your web browser will open by itself in a few seconds.
+echo   The first start takes a minute while the AI model loads -- your web
+echo   browser opens BY ITSELF the moment the engine is ready.
 echo   If it does not, open this address yourself:  http://localhost:%PORT%
 echo.
 echo   To stop the engine, press Ctrl and C together, or close this window.
 echo.
-start /b cmd /c "timeout /t 4 /nobreak >nul & start "" http://localhost:%PORT%"
+set "HIVE_OPEN_BROWSER=1"
 $($Py -join ' ') serve.py "%MODEL%" %PORT%
 "@
 Set-Content -Path (Join-Path $InstallDir "start.bat") -Value $startCmd -Encoding ASCII

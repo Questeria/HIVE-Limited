@@ -19,9 +19,12 @@ the rest exist for the setup page (models, engines, installs):
     GET  /receipt                              which shared libraries are actually mapped
     GET|POST /stop                             halt the current race and free rival GPUs
 
-Cross-site guard: any request a modern browser marks `Sec-Fetch-Site: cross-site` is
-refused. A random web page you have open must not be able to poke a local server that
-can start installs or kill races; same-origin UI traffic and curl are unaffected.
+Cross-site guard: the side-effect routes (/run, /stop, /select, /install, /engines/*)
+refuse requests a modern browser marks `Sec-Fetch-Site: cross-site`, unless the
+initiator is itself loopback (localhost vs 127.0.0.1 count as different sites, but a
+loopback Origin/Referer is our own UI). A random web page you have open must not be
+able to poke a local server that can start installs or kill races; page loads,
+read-only endpoints, curl, and app-launched navigations are unaffected.
 
 THE STREAM PROTOCOL (unnamed SSE `message` events, one JSON object each):
 
@@ -520,28 +523,44 @@ class Handler(BaseHTTPRequestHandler):
     def _json(self, obj, code=200):
         self._send(code, "application/json", json.dumps(obj, indent=2).encode())
 
-    def _cross_site(self):
-        # A foreign page's fetch()/img/script against 127.0.0.1 carries
-        # Sec-Fetch-Site: cross-site in every modern browser. The UI's own calls are
-        # same-origin and curl sends no such header, so refusing this loses nothing.
-        if self.headers.get("Sec-Fetch-Site", "").lower() == "cross-site":
-            self._send(403, "text/plain; charset=utf-8",
-                       b"cross-site requests to this local server are refused")
-            return True
-        return False
+    #: Routes that DO something (start a run, kill engines, launch installs). Only
+    #: these carry the cross-site guard: page loads and read-only endpoints are
+    #: harmless, and a foreign page cannot read their responses anyway (no CORS).
+    SENSITIVE = {"/run", "/stop", "/select", "/install", "/engines/add", "/engines/remove"}
+
+    def _cross_site(self, route):
+        # A foreign web page's fetch()/img/script against this server carries
+        # Sec-Fetch-Site: cross-site in every modern browser — refuse it for the
+        # side-effect routes. Two look-alikes must stay ALLOWED: (a) navigations
+        # launched by another app (cmd's `start`, the installer) are also marked
+        # cross-site by Chromium, but they only ever open the page routes, which are
+        # not guarded; (b) localhost and 127.0.0.1 are technically different sites,
+        # so a page on one fetching the other is "cross-site" — if the INITIATOR is
+        # itself loopback (Origin/Referer host), it is our own UI, not an attacker.
+        if route not in self.SENSITIVE:
+            return False
+        if self.headers.get("Sec-Fetch-Site", "").lower() != "cross-site":
+            return False
+        src = self.headers.get("Origin") or self.headers.get("Referer") or ""
+        host = urlparse(src).hostname or ""
+        if host in ("localhost", "127.0.0.1", "::1"):
+            return False
+        self._send(403, "text/plain; charset=utf-8",
+                   b"cross-site requests to this local server are refused")
+        return True
 
     def do_POST(self):
-        if self._cross_site():
+        if self._cross_site(urlparse(self.path).path):
             return
         if urlparse(self.path).path == "/stop":
             return self._stop()
         return self._send(404, "text/plain; charset=utf-8", b"not found")
 
     def do_GET(self):
-        if self._cross_site():
-            return
         url = urlparse(self.path)
         route = url.path
+        if self._cross_site(route):
+            return
         if route in ("/", "/index.html", "/setup.html"):
             name = "setup.html" if route == "/setup.html" else "index.html"
             page = HERE / "ui" / name
@@ -842,11 +861,21 @@ def main(argv):
             super().handle_error(request, client_address)
 
     srv = QuietServer(("127.0.0.1", port), Handler)
-    print(f"HIVE Limited arena on http://127.0.0.1:{port}  (loopback only)", flush=True)
+    print(f"HIVE Limited arena on http://localhost:{port}  (loopback only)", flush=True)
     st = rivals.status()
     for key, s in st.items():
         mark = "ready" if s["available"] else "not installed"
         print(f"  rival {s['name']:<12} {mark}", flush=True)
+    # Launchers set HIVE_OPEN_BROWSER=1 so the page opens exactly when the server can
+    # answer it — a timer in a launcher lands on a dead page while the model is still
+    # quantizing (found by the first real Windows install). The socket is already
+    # bound and listening here; requests queue until serve_forever picks them up.
+    if os.environ.get("HIVE_OPEN_BROWSER") == "1":
+        try:
+            import webbrowser
+            webbrowser.open(f"http://localhost:{port}")
+        except Exception:
+            pass
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
