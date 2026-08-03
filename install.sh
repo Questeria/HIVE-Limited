@@ -301,7 +301,9 @@ ${G}╰────────────────────────�
 EOF
 
 printf 'Start it now? [Y/n] '
-read -r REPLY </dev/tty 2>/dev/null || REPLY="n"
+# The braces matter: a failed /dev/tty redirect prints bash's own error before the
+# fallback runs unless the whole redirection is inside the silenced group.
+{ read -r REPLY </dev/tty; } 2>/dev/null || REPLY="n"
 case "${REPLY:-Y}" in
   ""|[Yy]*) exec "$INSTALL_DIR/start.sh" ;;
   *) echo "No problem — run $INSTALL_DIR/start.sh whenever you are ready."; echo ;;
