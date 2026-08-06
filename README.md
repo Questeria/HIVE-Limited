@@ -72,6 +72,11 @@ repository**:
    bit-exactness work was certified against. Do not compare this 5.00 against a
    competitor's headline 4.x without checking what their scales cost too.
 
+**This build runs Qwen3 and only Qwen3.** The full engine has since been tested across
+five model families; those results are dated and listed in
+[REFERENCE.md](REFERENCE.md), which is where every full-engine measurement lives, and
+they are not reproducible here.
+
 ## What it deliberately does not do
 
 | | |
@@ -82,6 +87,8 @@ repository**:
 | kernel research record | not included |
 | multi-GPU | not included |
 | the current performance frontier | not included |
+| model families other than Qwen3 | not included — this build runs one |
+| the parallel agent panel | not included |
 
 These are omissions, not restrictions. Modifying this repository will not recover
 them.

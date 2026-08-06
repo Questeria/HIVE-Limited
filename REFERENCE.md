@@ -1,6 +1,6 @@
 # HIVE — measured results for the full engine
 
-**Last updated: 2 August 2026.**
+**Last updated: 6 August 2026.**
 
 This page exists because HIVE Limited is deliberately slower and narrower than HIVE, and a
 demo you can run should not be mistaken for the ceiling. Every figure below was measured on
@@ -130,6 +130,41 @@ when their certification completes — and if it fails, they will not.
 Token-identical output across **three NVIDIA generations** — sm_86, sm_89, sm_90 — from the
 same compiler-emitted PTX, with no per-architecture source. Verified by full identity
 batteries on each.
+
+---
+
+## Model families — added 6 August 2026
+
+Portability across GPUs is one axis; portability across model *architectures* is another.
+HIVE has now been tested on **five model families**: Qwen3, Llama 3.2, GPT-2, Phi-3.5 and
+Gemma 3. HIVE Limited ships Qwen3 only.
+
+**Correctness — the binding gate.** Every model must generate output **token-identical to
+an independent reference implementation** of the same quantization spec. That is the same
+kind of check `./verify.sh` runs here on Qwen3, applied to each family. Most recent full
+pass: **40 of 40 test legs, zero failures.**
+
+Where the model is genuinely undecided between its top two candidates — within a factor of
+two in probability — the run is recorded as a **disclosed near-tie**, not counted as
+agreement. Papering over those would inflate the result.
+
+**Speed against llama.cpp, same machine, same protocol as everything else on this page:**
+
+| model | HIVE ÷ llama.cpp |
+|---|---|
+| Llama-3.2-3B | **1.46×** |
+| Qwen3-8B | ~1.1–1.25× |
+| Phi-3.5-mini | 0.94× |
+| GPT-2 | 0.86× |
+| Gemma-3-4B | 0.60× |
+
+**Three of those five are losses, and they are published because they are true.** The two
+wins and the three losses were measured identically: same-round interleaved medians, failed
+runs counted rather than discarded. Bit widths differ and are disclosed — HIVE decodes
+~4.4 bits per weight against Q4_K_M's ~4.7, so the raw ratios do not flatter HIVE.
+
+GPT-2 is the smallest model here and the one where per-token overhead matters most; it is
+a loss and is listed as one.
 
 ---
 
