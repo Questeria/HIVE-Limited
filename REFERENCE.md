@@ -1,6 +1,6 @@
 # HIVE — measured results for the full engine
 
-**Last updated: 6 August 2026.**
+**Last updated: 7 August 2026.**
 
 This page exists because HIVE Limited is deliberately slower and narrower than HIVE, and a
 demo you can run should not be mistaken for the ceiling. Every figure below was measured on
@@ -142,7 +142,10 @@ Gemma 3. HIVE Limited ships Qwen3 only.
 **Correctness — the binding gate.** Every model must generate output **token-identical to
 an independent reference implementation** of the same quantization spec. That is the same
 kind of check `./verify.sh` runs here on Qwen3, applied to each family. Most recent full
-pass: **40 of 40 test legs, zero failures.**
+pass: **48 of 48 test legs across six models, zero failures** (7 August 2026).
+
+The sixth model is the one worth mentioning: it was picked *after* the engine was built,
+to check that a model nobody had designed around would run. It did, unmodified.
 
 Where the model is genuinely undecided between its top two candidates — within a factor of
 two in probability — the run is recorded as a **disclosed near-tie**, not counted as
