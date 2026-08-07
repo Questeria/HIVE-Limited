@@ -136,7 +136,7 @@ batteries on each.
 ## Model families — added 6 August 2026
 
 Portability across GPUs is one axis; portability across model *architectures* is another.
-HIVE has now been tested on **five model families**: Qwen3, Llama 3.2, GPT-2, Phi-3.5 and
+HIVE has now been tested on **six models across five architecture families**: Qwen3, Llama 3.2, GPT-2, Phi-3.5 and
 Gemma 3. HIVE Limited ships Qwen3 only.
 
 **Correctness — the binding gate.** Every model must generate output **token-identical to
@@ -157,14 +157,18 @@ agreement. Papering over those would inflate the result.
 |---|---|
 | Llama-3.2-3B | **1.46×** |
 | Qwen3-8B | ~1.1–1.25× |
+| Llama-3.2-1B | **1.07×** |
 | Phi-3.5-mini | 0.94× |
 | GPT-2 | 0.86× |
 | Gemma-3-4B | 0.60× |
 
-**Three of those five are losses, and they are published because they are true.** The two
-wins and the three losses were measured identically: same-round interleaved medians, failed
-runs counted rather than discarded. Bit widths differ and are disclosed — HIVE decodes
-~4.4 bits per weight against Q4_K_M's ~4.7, so the raw ratios do not flatter HIVE.
+**Three of those six are losses, and they are published because they are true.** Wins and
+losses were measured identically: same-round interleaved medians, failed runs counted
+rather than discarded. Bit widths differ and are disclosed — HIVE decodes ~4.4 bits per
+weight against Q4_K_M's ~4.7, so the raw ratios do not flatter HIVE.
+
+Size does not explain the split: the 1B model wins and the 4B model loses hardest. The
+losses track a narrower engineering gap, and until it is closed they stay on this page.
 
 GPT-2 is the smallest model here and the one where per-token overhead matters most; it is
 a loss and is listed as one.
