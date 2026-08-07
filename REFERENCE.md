@@ -175,6 +175,46 @@ a loss and is listed as one.
 
 ---
 
+## The agent panel — added 7 August 2026
+
+The README lists "the parallel agent panel" among the things HIVE Limited does not
+include. This is what it measures on the full engine.
+
+The panel runs several agents **concurrently on one GPU** against one copy of the
+weights. Two rates matter and both are reported, because only quoting the first would
+be the flattering half:
+
+- **per-agent** — the rate a single agent in the panel experiences. A round lasts as
+  long as its slowest participant, so this is what one agent actually feels.
+- **panel** — every agent's tokens combined.
+
+**Qwen3-1.7B, w4a8, RTX 3070 Laptop. 18 rounds, 3 palindrome cycles (2-4-8-8-4-2),
+0 failures.**
+
+| agents | per-agent | panel total |
+|---|---|---|
+| 2 | 59.5 tok/s | 112.6 tok/s |
+| 4 | 48.3 tok/s | 180.8 tok/s |
+| 8 | 48.4 tok/s | 284.8 tok/s |
+
+**Doubling 2 → 4 costs each agent 1.23×. Doubling again, 4 → 8, costs nothing this
+measurement can resolve** — 48.3 against 48.4 is far inside the noise, and the 4-agent
+column is the wider-spread of the two, so the fair reading is that 4 and 8 are
+*indistinguishable here*, not that widening is provably free. Across the full range,
+4× the agents costs each one 1.23× while the panel produces 2.53× the tokens.
+
+**Three limits, stated rather than left for you to find:**
+
+- **No rival appears in this table.** llama.cpp has no comparable mode to interleave
+  against, so unlike every other figure on this page, this one compares HIVE against
+  HIVE at different widths. It is a scaling curve, not a win.
+- **The baseline is 2 agents, not 1.** A single-agent panel was not measured, so the
+  cost of the *first* agent is not established by this table.
+- **One model, one prompt class, short generations.** Longer outputs and larger models
+  are not covered by these numbers and should not be inferred from them.
+
+---
+
 ## Preview the unrestricted HIVE
 
 The full engine is not public. If you want to see it run, discuss licensing, or ask anything

@@ -88,7 +88,7 @@ they are not reproducible here.
 | multi-GPU | not included |
 | the current performance frontier | not included |
 | model families other than Qwen3 | not included — this build runs one |
-| the parallel agent panel | not included |
+| the parallel agent panel | not included — measured results in [REFERENCE.md](REFERENCE.md) |
 
 These are omissions, not restrictions. Modifying this repository will not recover
 them.
