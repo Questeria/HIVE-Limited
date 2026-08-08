@@ -144,6 +144,13 @@ an independent reference implementation** of the same quantization spec. That is
 kind of check `./verify.sh` runs here on Qwen3, applied to each family. Most recent full
 pass: **48 of 48 test legs across six models, zero failures** (7 August 2026).
 
+**What those 48 are made of**, because "48 of 48" on its own invites a stronger reading
+than the evidence supports: **33 legs agreed over the full claim window, and 15 ended at
+a disclosed near-tie fork** — the model's own top two candidates were within a factor of
+two, so the window was shortened to that point rather than counted as agreement past it.
+Zero legs disagreed. Roughly a third of the battery therefore rests on shorter windows,
+and that is worth knowing before weighing the number.
+
 The sixth model is the one worth mentioning: it was picked *after* the engine was built,
 to check that a model nobody had designed around would run. It did, unmodified.
 
